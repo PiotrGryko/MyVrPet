@@ -1,0 +1,120 @@
+apply plugin: 'com.android.model.application'
+
+model {
+    android {
+        compileSdkVersion = 23
+        buildToolsVersion = '23.0.2'
+
+        defaultConfig {
+            applicationId = 'pl.piotr.myvrpet'
+            minSdkVersion.apiLevel = 19
+            targetSdkVersion.apiLevel = 23
+        }
+        /*
+         * native build settings: taking default for almost everything
+         */
+
+        ndk {
+            platformVersion = 9
+            moduleName = 'hello-jni'
+            cppFlags.add("-std=c++11") // Add provisions to allow C++11 functionality
+            cppFlags.add("-fexceptions")
+            cppFlags.add("-DWITH_OPENCL")
+            // YOUR OPENCV DIRECTORY!!!
+            cppFlags.add("-I${file("/home/piotr/develop/OpenCV-android-sdk/sdk/native/jni/include")}".toString())
+
+            // YOUR OPENCL DIRECTORY!!!
+            //cppFlags.add("-I${file("/home/piotr/develop/opencv/3rdparty/include/opencl/1.2")}".toString())
+
+
+
+            cppFlags.add("-I${file("src/main/opencl")}".toString())
+
+            //CFlags.add("-I${file("src/main/jni/opencl.CL")}".toString())
+
+            ldLibs.addAll(["android", "EGL", "GLESv2", "dl", "log", "z"])
+            stl = "gnustl_shared"
+        }
+        buildTypes {
+            release {
+                minifyEnabled = false
+                proguardFiles.add(file('proguard-rules.txt'))
+            }
+        }
+        productFlavors {
+            // for detailed abiFilter descriptions, refer to "Supported ABIs" @
+            // https://developer.android.com/ndk/guides/abis.html#sa
+
+            create("arm") {
+
+                ndk.abiFilters.add("armeabi")
+
+
+                File curDir = file('./')
+                curDir = file(curDir.absolutePath)
+                String libsDir = curDir.absolutePath + "/src/main/jniLibs/armeabi/"
+
+                ndk.ldLibs.add(libsDir + "libgvrbase.so")
+                ndk.ldLibs.add(libsDir + "libOpenCL.so")
+
+                ndk.ldLibs.add(libsDir + "libvraudio_engine.so")
+                ndk.ldLibs.add(libsDir + "libopencv_core.a")
+                ndk.ldLibs.add(libsDir + "libopencv_highgui.a")
+                ndk.ldLibs.add(libsDir + "libopencv_imgproc.a")
+                ndk.ldLibs.add(libsDir + "libopencv_java3.so")
+                ndk.ldLibs.add(libsDir + "libopencv_ml.a")
+
+
+
+            }
+            create("armv7") {
+
+                ndk.abiFilters.add("armeabi-v7a")
+
+                File curDir = file('./')
+                curDir = file(curDir.absolutePath)
+                String libsDir = curDir.absolutePath + "/src/main/jniLibs/armeabi-v7a/"
+                ndk.ldLibs.add(libsDir + "libgvrbase.so")
+                ndk.ldLibs.add(libsDir + "libvraudio_engine.so")
+                ndk.ldLibs.add(libsDir + "libOpenCL.so")
+
+                ndk.ldLibs.add(libsDir + "libopencv_core.a")
+                ndk.ldLibs.add(libsDir + "libopencv_highgui.a")
+                ndk.ldLibs.add(libsDir + "libopencv_imgproc.a")
+                ndk.ldLibs.add(libsDir + "libopencv_java3.so")
+                ndk.ldLibs.add(libsDir + "libopencv_ml.a")
+                ndk.ldLibs.add(libsDir + "libopencv_ts.a")
+
+
+            }
+
+            create("arm8") {
+                ndk.abiFilters.add("arm64-v8a")
+            }
+            create("x86") {
+                ndk.abiFilters.add("x86")
+            }
+            create("x86-64") {
+                ndk.abiFilters.add("x86_64")
+            }
+            create("mips") {
+                ndk.abiFilters.add("mips")
+            }
+            create("mips-64") {
+                ndk.abiFilters.add("mips64")
+            }
+            // To include all cpu architectures, leaves abiFilters empty
+            create("all")
+
+        }
+    }
+}
+
+
+dependencies {
+    compile 'org.opencv:OpenCV-Android:3.1.0'
+
+    compile project(':libraries:audio')
+    compile project(':libraries:base')
+    compile project(':libraries:common')
+}

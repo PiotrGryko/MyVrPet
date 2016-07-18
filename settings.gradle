@@ -1,0 +1,4 @@
+include ':app'
+include ':libraries:audio'
+include ':libraries:base'
+include ':libraries:common'
