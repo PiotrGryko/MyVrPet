@@ -223,39 +223,82 @@ public final class WorldLayoutData {
 
     // The grid lines on the floor are rendered procedurally and large polygons cause floating point
     // precision problems on some architectures. So we split the floor into 4 quadrants.
-    public static final float[] FLOOR_COORDS = new float[]{
+
+
+    private static final float[] FLOOR_COORDS = new float[]{
             // +X, +Z quadrant
-            200, 0, 0,
+            2, 0, 0,
             0, 0, 0,
-            0, 0, 200,
-            200, 0, 0,
-            0, 0, 200,
-            200, 0, 200,
+            0, 0, 2,
+            2, 0, 0,
+            0, 0, 2,
+            2, 0, 2,
 
             // -X, +Z quadrant
             0, 0, 0,
-            -200, 0, 0,
-            -200, 0, 200,
+            -2, 0, 0,
+            -2, 0, 2,
             0, 0, 0,
-            -200, 0, 200,
-            0, 0, 200,
+            -2, 0, 2,
+            0, 0, 2,
 
             // +X, -Z quadrant
-            200, 0, -200,
-            0, 0, -200,
+            2, 0, -2,
+            0, 0, -2,
             0, 0, 0,
-            200, 0, -200,
+            2, 0, -2,
             0, 0, 0,
-            200, 0, 0,
+            2, 0, 0,
 
             // -X, -Z quadrant
-            0, 0, -200,
-            -200, 0, -200,
-            -200, 0, 0,
-            0, 0, -200,
-            -200, 0, 0,
+            0, 0, -2,
+            -2, 0, -2,
+            -2, 0, 0,
+            0, 0, -2,
+            -2, 0, 0,
             0, 0, 0,
     };
+
+    public static float[] getFloor(float x, float z)
+    {
+
+        return new float[]{
+                // +X, +Z quadrant
+                x+2, -20, z,
+                x, -20, z,
+                x, -20, z+2,
+                x+2, -20, z,
+                x, -20, z+2,
+                x+2, -20, z+2,
+
+                // -X, +Z quadrant
+                x, -20, z,
+                x-2, -20, z,
+                x-2, -20, z+2,
+                x, -20, z,
+                x-2, -20, z+2,
+                x, -20, z+2,
+
+                // +X, -Z quadrant
+                x+2, -20, z-2,
+                x, -20, z-2,
+                x, -20, z,
+                x+2, -20, z-2,
+                x, -20, z,
+                x+2, -20, z,
+
+                // -X, -Z quadrant
+                x, -20, z-2,
+                x-2, -20, z-2,
+                x-2, -20, z,
+                x, -20, z-2,
+                x-2, -20, z,
+                x, -20, z,
+        };
+    }
+
+
+
 
     public static final float[] FLOOR_NORMALS = new float[]{
             0.0f, 1.0f, 0.0f,

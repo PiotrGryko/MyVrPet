@@ -25,10 +25,14 @@ import com.google.vr.sdk.base.Viewport;
 
 import android.content.Context;
 import android.opengl.GLES20;
+import android.opengl.GLU;
 import android.opengl.Matrix;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+
 import org.opencv.android.CameraGLSurfaceView;
 
 
@@ -36,8 +40,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 
 import pl.piotr.myvrpet.camera.CameraOpecCVRendererBase;
 import pl.piotr.myvrpet.camera.CameraOpenCvRendererV15;
@@ -102,7 +108,7 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
     private float[] headRotation;
 
     private float objectDistance = MAX_MODEL_DISTANCE / 2.0f;
-    private float floorDepth = 30f;
+    private float floorDepth = -20f;
 
     private Vibrator vibrator;
 
@@ -113,6 +119,11 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
     private CameraOpecCVRendererBase cameraOpenCvRenderer;
     private Pet pet;
     private Floor floor;
+    private Floor floor2;
+
+    private float touchX;
+    private float touchY;
+
     //private HelloWorld test;
 
 
@@ -229,8 +240,11 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
         }
         pet = new Pet(this);
-        floor = new Floor(this);
+        floor = new Floor(this,0,0);
+        floor2 = new Floor(this,0.2f,0.2f);
+
         //test = new HelloWorld(this);
+
 
 
     }
@@ -259,6 +273,28 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
                     }
                 });
         setGvrView(gvrView);
+
+        gvrView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+
+                switch(event.getAction())
+                {
+                    case MotionEvent.ACTION_DOWN:
+                    case MotionEvent.ACTION_MOVE:
+
+                    {
+                        touchX=event.getX();
+                        touchY=event.getY();
+
+                        Log.d("XXX","on touch event "+ touchX +" "+touchY);
+                    }
+                    break;
+                }
+
+                return false;
+            }
+        });
     }
 
     @Override
@@ -280,10 +316,13 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
         Log.i(TAG, "onRendererShutdown");
     }
 
+    private int screenWidth;
+    private int screenHeight;
     @Override
     public void onSurfaceChanged(int width, int height) {
         Log.i(TAG, "onSurfaceChanged");
-
+        screenHeight=height;
+        screenWidth=width;
         cameraOpenCvRenderer.onSurfaceChanged(null, width, height);
         // cameraRenderer.onSurfaceChanged(null, width, height);
         //test.onSurfaceChanged(width, height);
@@ -317,10 +356,15 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
         pet.onSurfaceCreated(vertexShader, passthroughShader);
         floor.onSurfaceCreated(vertexShader, gridShader);
+        floor2.onSurfaceCreated(vertexShader, gridShader);
 
 
         Matrix.setIdentityM(modelFloor, 0);
-        Matrix.translateM(modelFloor, 0, 0, -floorDepth * 2, 0); // Floor appears below user.
+        Log.d("VVV","model floor "+Arrays.toString(modelFloor));
+
+        //Matrix.translateM(modelFloor, 0, 0, floorDepth, 0); // Floor appears below user.
+
+        Log.d("VVV","model floor transformed "+Arrays.toString(modelFloor));
 
         // Avoid any delays during start-up due to decoding of sound files.
         new Thread(
@@ -427,6 +471,7 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
     public void onDrawEye(Eye eye) {
 
 
+
         //    GLES20.glEnable(GLES20.GL_DEPTH_TEST);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         cameraOpenCvRenderer.onDrawFrame(null);
@@ -459,7 +504,180 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
         Matrix.multiplyMM(modelView, 0, view, 0, modelFloor, 0);
         Matrix.multiplyMM(modelViewProjection, 0, perspective, 0, modelView, 0);
         floor.drawFloor();
+        drawInversedFloor(touchX,touchY,getResources().getDisplayMetrics().widthPixels,getResources().getDisplayMetrics().heightPixels,floorDepth);
 
+
+        //Ray(eye,screenWidth,screenHeight,touchX,touchY);
+
+    }
+
+
+    public void drawInversedFloor(float x, float y, float screenW, float screenH, float depth) {
+
+
+        // Auxiliary matrix and vectors
+        // to deal with ogl.
+        float[] invertedMatrix, transformMatrix,
+                normalizedInPoint, outPoint;
+        invertedMatrix = new float[16];
+        transformMatrix = new float[16];
+        normalizedInPoint = new float[4];
+        outPoint = new float[4];
+
+        // Invert y coordinate, as android uses
+        // top-left, and ogl bottom-left.
+        int oglTouchY = (int) (screenH - y);
+
+       /* Transform the screen point to clip
+       space in ogl (-1,1) */
+
+        normalizedInPoint[0] =
+                (float) ((x) * 2.0f / screenW - 1.0);
+        normalizedInPoint[1] =
+                (float) ((oglTouchY) * 2.0f / screenH - 1.0);
+        normalizedInPoint[2] = - 1.0f;
+        normalizedInPoint[3] = 1.0f;
+
+        float normalizedX  =                (float) ((x) * 2.0f / screenW - 1.0);
+        oglTouchY=(int)y;
+        float normalizedY= (float) ((oglTouchY) * 2.0f / screenH - 1.0);
+        // Log.d("XXX","normalized point "+Arrays.toString(normalizedInPoint));
+
+/*
+        normalizedInPoint[0] =
+                (float) ((x) * 2.0f / screenW - 1.0);
+        normalizedInPoint[2] =
+                (float) ((oglTouchY) * 2.0f / screenH - 1.0);
+        normalizedInPoint[1] = floorDepth;
+        normalizedInPoint[3] = 1.0f;
+*/
+       /* Obtain the transform matrix and
+       then the inverse. */
+        // Print("Proj", getCurrentProjection(gl));
+        // Print("Model", getCurrentModelView(gl));
+
+        //Matrix.multiplyMM(
+        //        transformMatrix, 0,
+        //        modelViewProjection, 0,
+        //        view, 0);
+        Matrix.invertM(invertedMatrix, 0,
+                modelViewProjection, 0);
+
+       /* Apply the inverse to the point
+       in clip space */
+
+
+      //  normalizedInPoint[0]=1;
+      //  normalizedInPoint[1]=1f;
+
+        Matrix.multiplyMV(
+                outPoint, 0,
+                invertedMatrix, 0,
+                normalizedInPoint, 0);
+        Matrix.multiplyMV(outPoint,0,modelView, 0, outPoint, 0);
+
+        //Log.d("XXX","out point "+Arrays.toString(outPoint));
+
+
+        //floor2.setCoords(outPoint[0]*outPoint[3],outPoint[1]*outPoint[3]);
+        //floor2.drawFloor();
+
+
+        //floor2.setCoords(normalizedInPoint[0],normalizedInPoint[1]);
+        //floor2.drawFloor();
+
+        //Log.d("XXX","draw inverted floor "+ Arrays.toString(outPoint));
+
+        //Log.d("XXX","draw inverted floor x "+normalizedInPoint[0]*floorDepth +"  "+normalizedInPoint[1]*floorDepth);
+
+       // Log.d("XXX","draw inverted floor x "+outPoint[0] / outPoint[3] +" "+ outPoint[1] / outPoint[3] +" "+ outPoint[2] / outPoint[3]);
+
+        float[] direction = {modelView[2],modelView[6],modelView[10]};
+
+        float yDir = direction[1];
+        float delta = -20.0f/yDir;
+
+        direction[0]=(normalizedX+direction[0])*delta;
+        direction[1]=direction[1]*delta;
+        direction[2]=((direction[2]+normalizedY)*delta);
+
+        Log.d("XXX","normalized X="+normalizedX+ " normalized y="+normalizedY);
+        Log.d("XXX","direction "+Arrays.toString(direction));
+
+
+        float[] point = {0,0,0};
+        float scale = floorDepth/direction[2];
+        float out[] = {view[2]*scale,view[6]*scale,view[10]*scale};
+
+        //Log.d("XXX","draw inverted floor "+ Arrays.toString(out));
+
+        floor2.setCoords(direction[0],direction[2]);
+        floor2.drawFloor();
+        //Log.d("XXX","depth:"+floorDepth+",  draw inverted floor "+ Arrays.toString(direction));
+
+
+        float[] ray_nds = {0, 0, 1};
+
+    }
+
+    public void Ray(Eye eye,int width, int height, float xTouch, float yTouch) {
+
+        int[] viewport = {0, 0, width, height};
+
+        float[] nearCoOrds = new float[3];
+        float[] farCoOrds = new float[3];
+        float[] temp = new float[4];
+        float[] temp2 = new float[4];
+        // get the near and far ords for the click
+
+        float winx = xTouch, winy =(float)viewport[3] - yTouch;
+
+//        Log.d(TAG, "modelView is =" + Arrays.toString(matrixGrabber.mModelView));
+//        Log.d(TAG, "projection view is =" + Arrays.toString( matrixGrabber.mProjection ));
+
+        float[] perspective = eye.getPerspective(Z_NEAR, Z_FAR);
+
+        //Matrix.multiplyMM(modelView, 0, headView, 0, modelFloor, 0);
+
+
+
+        int result = GLU.gluUnProject(winx, winy, 1.0f, modelView, 0, perspective, 0, viewport, 0, temp, 0);
+
+      //  Log.d("VVV","model view "+Arrays.toString(temp));
+       // Log.d("VVV","flooor1 "+Arrays.toString(floor.coords));
+        //Matrix.translateM(modelFloor, 0, 0, floorDepth, 0); // Floor appears below user.
+
+        Matrix.multiplyMV(temp2, 0, modelView, 0, temp, 0);
+
+      ///  Log.d("VVV","flooor2 "+Arrays.toString(temp2));
+     /*
+        if(result == GL10.GL_TRUE){
+            nearCoOrds[0] = temp2[0] / temp2[3];
+            nearCoOrds[1] = temp2[1] / temp2[3];
+            nearCoOrds[2] = temp2[2] / temp2[3];
+
+        }
+*/
+ //       result = GLU.gluUnProject(winx, winy, 0, modelView, 0, perspective, 0, viewport, 0, temp, 0);
+
+       // Log.d("VVV","result "+(temp[0] / temp[3])+"  "+(temp[1] / temp[3]));
+
+        floor2.setCoords((temp2[0] / temp2[3]),(temp2[1] / temp2[3]));
+
+       //floor2.setCoords(0.5f,0.5f);
+       // floor2.drawInvertedFloor();
+
+        floor2.drawFloor();
+        /*
+        Matrix.multiplyMV(temp2,0,modelView, 0, temp, 0);
+        if(result == GL10.GL_TRUE){
+            farCoOrds[0] = temp2[0] / temp2[3];
+            farCoOrds[1] = temp2[1] / temp2[3];
+            farCoOrds[2] = temp2[2] / temp2[3];
+        }
+       */
+       // Log.d("XXX","near "+Arrays.toString(nearCoOrds));
+       // Log.d("XXX","far  "+Arrays.toString(farCoOrds));
 
     }
 
