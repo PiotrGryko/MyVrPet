@@ -223,7 +223,7 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
                 ///    return false;
 
                 NativePart.processFrame(texIn, texOut, width, height, 2);
-                return true;
+                return false;
 
                 //return false;
             }
@@ -600,9 +600,6 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
         direction[0]=(normalizedX+direction[0])*delta;
         direction[1]=direction[1]*delta;
         direction[2]=((direction[2]+normalizedY)*delta);
-
-        Log.d("XXX","normalized X="+normalizedX+ " normalized y="+normalizedY);
-        Log.d("XXX","direction "+Arrays.toString(direction));
 
 
         float[] point = {0,0,0};
