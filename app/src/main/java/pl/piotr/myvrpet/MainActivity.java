@@ -223,7 +223,7 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
                 ///    return false;
 
                 NativePart.processFrame(texIn, texOut, width, height, 2);
-                return false;
+                return true;
 
                 //return false;
             }
@@ -316,14 +316,16 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
         Log.i(TAG, "onRendererShutdown");
     }
 
-    private int screenWidth;
-    private int screenHeight;
+    private int screenWidth = 1280;
+    private int screenHeight =720;
     @Override
     public void onSurfaceChanged(int width, int height) {
         Log.i(TAG, "onSurfaceChanged");
-        screenHeight=height;
-        screenWidth=width;
-        cameraOpenCvRenderer.onSurfaceChanged(null, width, height);
+        //screenHeight=height;
+        //screenWidth=width;
+
+       // GLES20.glViewport(0, 0, screenWidth/width, screenHeight/height);
+        cameraOpenCvRenderer.onSurfaceChanged(null, screenWidth,screenHeight);
         // cameraRenderer.onSurfaceChanged(null, width, height);
         //test.onSurfaceChanged(width, height);
     }
