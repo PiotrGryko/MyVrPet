@@ -11,7 +11,7 @@
 
 void dumpInfo();
 extern "C" cl::Context initOpenCL();
-cl::Program initProgram(char src[]);
+cl::Program initProgram(const char src[]);
 cl::CommandQueue initQueue();
 bool openClInitialized();
 

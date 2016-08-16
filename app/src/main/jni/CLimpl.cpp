@@ -71,7 +71,7 @@ cl::CommandQueue initQueue()
     return queue;
 }
 
-cl::Program initProgram(char src[])
+cl::Program initProgram(const char src[])
 {
     cl::Program::Sources sources(1, std::make_pair(src,
                                                    sizeof(src)));

@@ -16,6 +16,7 @@
 #include <sstream>
 
 #include "CLcommon.hpp"
+#include "CLimpl.hpp"
 
 
 void dumpCLInfo() {
@@ -221,43 +222,23 @@ bool haveOpenCL = false;
 extern "C" void initCL() {
     dumpCLInfo();
 
-    EGLDisplay mEglDisplay = eglGetCurrentDisplay();
-    if (mEglDisplay == EGL_NO_DISPLAY)
-        LOGE("initCL: eglGetCurrentDisplay() returned 'EGL_NO_DISPLAY', error = %x", eglGetError());
 
-    EGLContext mEglContext = eglGetCurrentContext();
-    if (mEglContext == EGL_NO_CONTEXT)
-        LOGE("initCL: eglGetCurrentContext() returned 'EGL_NO_CONTEXT', error = %x", eglGetError());
-
-    cl_context_properties props[] =
-            {CL_GL_CONTEXT_KHR, (cl_context_properties) mEglContext,
-             CL_EGL_DISPLAY_KHR, (cl_context_properties) mEglDisplay,
-             CL_CONTEXT_PLATFORM, 0,
-             0};
 
     try {
         haveOpenCL = false;
-        cl::Platform p = cl::Platform::getDefault();
-        std::string ext = p.getInfo<CL_PLATFORM_EXTENSIONS>();
-        if (ext.find("cl_khr_gl_sharing") == std::string::npos)
-            LOGE("Warning: opencl.CL-GL sharing isn't supported by PLATFORM");
-        props[5] = (cl_context_properties) p();
 
-
-        theContext = cl::Context(CL_DEVICE_TYPE_GPU, props);
+        theContext = initOpenCL();
         std::vector<cl::Device> devs = theContext.getInfo<CL_CONTEXT_DEVICES>();
-        LOGD("Context returned %d devices, taking the 1st one", devs.size());
-        ext = devs[0].getInfo<CL_DEVICE_EXTENSIONS>();
-        if (ext.find("cl_khr_gl_sharing") == std::string::npos)
-            LOGE("Warning: opencl.CL-GL sharing isn't supported by DEVICE");
+
+        theQueue=initQueue();
 
 
-        theQueue = cl::CommandQueue(theContext, devs[0]);
 
         cl::Program::Sources mainSrc(1, std::make_pair(kernel_edge_detection,
                                                        sizeof(kernel_edge_detection)));
         edgeDetectionProgram = cl::Program(theContext, mainSrc);
         edgeDetectionProgram.build(devs);
+
 
 
         cl::Program::Sources resultSrc(1, std::make_pair(kernel_radial_sweep,
@@ -361,46 +342,8 @@ void procOCL_I2I(int texIn, int texOut, int w, int h) {
     theQueue.finish();
 
 
-
-    //   theQueue.enqueueReleaseGLObjects(&images);
-    //   theQueue.finish();
-
-
-
-
-    ///////////////////////////////
-
-
-
-
-
-
-
-
-
-
-    //LOGE("procOCL_I2I(%d, %d, %d, %d)", texIn, texOut, w, h);
-    // cl::ImageGL imgIn(theContext, CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0, texIn);
-    /// cl::ImageGL imgOut(theContext, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, texOut);
-
-
-    // std::vector<cl::Memory> images;
-    // images.push_back(imgIn);
-    //  images.push_back(imgOut);
-
-    //   theQueue.enqueueAcquireGLObjects(&images);
-    //  theQueue.finish();
-
-
-
-    //int coordsY[w]={0};
-
-
     cl::Buffer bufferSize(theContext, CL_MEM_READ_WRITE, sizeof(long));
     cl::Buffer bufferCoords(theContext, CL_MEM_READ_WRITE, sizeof(cl_int2) * w * h);
-    //cl::Buffer bufferCoordsY(theContext, CL_MEM_READ_WRITE, sizeof(int) * w);
-
-
 
     cl::Kernel edge_detection(edgeDetectionProgram,
                               "kernel_edge_detection");
@@ -417,32 +360,10 @@ void procOCL_I2I(int texIn, int texOut, int w, int h) {
 
     long size[] = {0};
     theQueue.enqueueReadBuffer(bufferSize, CL_TRUE, 0, sizeof(long), size);
-    long coordsCount = size[0];
-
-
-
-    //   theQueue.enqueueReleaseGLObjects(&images);
-    //   theQueue.finish();
-
-
-
-    /////////////////////////////////////////////
-
-
-
-    // if (coordsCount > 0) {
-    //  LOGD("coords size %ld ", coordsCount);
-
-    //  cl_int2 coords[coordsCount];
-    //  theQueue.enqueueReadBuffer(bufferCoords, CL_TRUE, 0, sizeof(cl_int2) * coordsCount, coords);
 
 
     cl::Buffer outputCoords(theContext, CL_MEM_READ_WRITE,
                             sizeof(cl_int2) * 18, NULL);
-
-    // cl::Buffer coordsToDraw(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-    //                         sizeof(cl_int2) * coordsCount, coords);
-
 
     cl::Kernel radial_sweep(radialSweepProgram, "kernel_radial_sweep"); //TODO: may be done once
     radial_sweep.setArg(0, outputCoords);
@@ -475,8 +396,6 @@ void procOCL_I2I(int texIn, int texOut, int w, int h) {
 
     theQueue.finish();
 
-
-    ///   }
 
 
 }
