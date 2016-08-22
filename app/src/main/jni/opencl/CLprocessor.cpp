@@ -298,7 +298,9 @@ float *createBlurMask(float sigma, int *maskSizePointer) {
 }
 
 
-void procOCL_I2I(int texIn, int texOut, int w, int h) {
+void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][1]) {
+    cl_int2 result[18];
+
     if (!haveOpenCL) {
         LOGE("OpenCL isn't initialized");
         return;
@@ -376,12 +378,8 @@ void procOCL_I2I(int texIn, int texOut, int w, int h) {
                                   cl::NullRange);
     theQueue.finish();
 
-    cl_int2 result[18];
     theQueue.enqueueReadBuffer(outputCoords, CL_TRUE, 0, sizeof(cl_int2) * 18, result);
 
-    for (int i = 0; i < 1; i++) {
-        LOGD("result %d x=%d y=%d", i, result[i].s[0], result[i].s[1]);
-    }
 
 
     cl::Kernel test_radial_sweep(drawRadialSweepProgram,
@@ -396,7 +394,14 @@ void procOCL_I2I(int texIn, int texOut, int w, int h) {
 
     theQueue.finish();
 
+    for(int i=0;i<18;i++)
+    {
+        output[i][0]=result[i].s[0];
+        output[i][1]=result[i].s[1];
 
+    }
+
+    return;
 
 }
 
@@ -437,25 +442,3 @@ enum ProcMode {
 };
 
 
-
-extern "C" void processFrame(int tex1, int tex2, int w, int h, int mode) {
-    //LOGD("processing mode %d", mode);
-
-
-    switch (mode) {
-        case PROC_MODE_NO_PROC:
-        case PROC_MODE_CPU:
-            drawFrameProcCPU(w, h, tex2);
-            break;
-        case PROC_MODE_OCL_DIRECT:
-            procOCL_I2I(tex1, tex2, w, h);
-            break;
-
-        default:;
-            //LOGE("Unexpected processing mode: %d", mode);
-    }
-
-//    drawFrameProcCPU(w, h, tex2);
-
-
-}

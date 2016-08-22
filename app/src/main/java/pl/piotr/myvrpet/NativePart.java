@@ -1,4 +1,4 @@
-package pl.piotr.myvrpet.camera;
+package pl.piotr.myvrpet;
 
 public class NativePart {
 
@@ -12,4 +12,11 @@ public class NativePart {
     public static native void initCL();
     public static native void closeCL();
     public static native void processFrame(int tex1, int tex2, int w, int h, int mode);
+
+    public static native void onDraw(float[] perspective, float[] eyeVoew);
+    public static native void onSurfaceCreated(int w, int h);
+    public static native void onSurfaceChanged(int w, int h);
+    public static native void onTouch(float w, float h);
+    public static native void onHeadTranform(float [] quaternion,float[] forwardVector, float[] rightVector);
+
 }

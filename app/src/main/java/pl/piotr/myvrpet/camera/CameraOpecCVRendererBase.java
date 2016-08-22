@@ -311,7 +311,7 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
       //  if(fbo == 0)
        //     GLES20.glViewport(0, 0, mView.getWidth(), mView.getHeight());
         //else
-            GLES20.glViewport(0, 0, mFBOWidth, mFBOHeight);
+          //  GLES20.glViewport(0, 0, mFBOWidth, mFBOHeight);
 
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
