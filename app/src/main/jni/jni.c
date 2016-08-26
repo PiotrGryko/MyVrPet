@@ -5,7 +5,7 @@ void initCL();
 void closeCL();
 void processFrame(int tex1, int tex2, int w, int h, int mode);
 
-void onDraw(float *perspective, float *eyeView);
+void onDraw(float *modelViewProjection, float *eyeView,float *perspective);
 void onSurfaceCreated(int w, int h);
 void onSurfaceChanged(int w, int h);
 
@@ -28,16 +28,20 @@ JNIEXPORT void JNICALL Java_pl_piotr_myvrpet_NativePart_processFrame(JNIEnv * en
 }
 
 JNIEXPORT void JNICALL
-Java_pl_piotr_myvrpet_NativePart_onDraw(JNIEnv *env, jclass type, jfloatArray perspective_,
-                                               jfloatArray eyeVoew_) {
-    jfloat *perspective = (*env)->GetFloatArrayElements(env, perspective_, NULL);
+Java_pl_piotr_myvrpet_NativePart_onDraw(JNIEnv *env, jclass type, jfloatArray modelViewProjection_,
+                                               jfloatArray eyeVoew_,jfloatArray perspective_) {
+    jfloat *modelViewProjection = (*env)->GetFloatArrayElements(env, modelViewProjection_, NULL);
     jfloat *eyeVoew = (*env)->GetFloatArrayElements(env, eyeVoew_, NULL);
+    jfloat *perspecitve = (*env)->GetFloatArrayElements(env, perspective_, NULL);
+
 
     // TODO
-    onDraw(perspective,eyeVoew);
+    onDraw(modelViewProjection, eyeVoew,perspecitve);
 
-    (*env)->ReleaseFloatArrayElements(env, perspective_, perspective, 0);
+    (*env)->ReleaseFloatArrayElements(env, modelViewProjection_, modelViewProjection, 0);
     (*env)->ReleaseFloatArrayElements(env, eyeVoew_, eyeVoew, 0);
+    (*env)->ReleaseFloatArrayElements(env, perspective_, perspecitve, 0);
+
 }
 
 JNIEXPORT void JNICALL

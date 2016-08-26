@@ -298,7 +298,7 @@ float *createBlurMask(float sigma, int *maskSizePointer) {
 }
 
 
-void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][1]) {
+void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2]) {
     cl_int2 result[18];
 
     if (!haveOpenCL) {
@@ -393,6 +393,7 @@ void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][1]) {
 
 
     theQueue.finish();
+
 
     for(int i=0;i<18;i++)
     {

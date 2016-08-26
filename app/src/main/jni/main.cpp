@@ -6,147 +6,75 @@
 #include "engine/engine.h"
 #include "opencl/CLcommon.hpp"
 #include <math.h>
+#include "glm.hpp"
+#include "engine/glu_imp.h"
 
-int width;
-int height;
-float *modelView;
+float mModelView[16];
+float mPerspective[16];
+float mModelViewProjection[16];
+
 float projectedTouchX = 0;
 float projectedTouchY = 0;
 float mHeadForwardVector[4];
 float mHeadRotationQuaternion[4];
 float mHeadRightVector[4];
 
-extern "C" void processFrame(int tex1, int tex2, int w, int h, int mode) {
-    //LOGD("processing mode %d", mode);
+
+int mProcessingResult[18][2];
+
+float static depth=-20;
+
+float screenHeight;
+float screenWidth;
+
+static void project2Dto3D(float output[3], float x, float y, float maxWidth, float maxHeight)
+{
+
+    GLfloat  xNear;
+    GLfloat  yNear;
+    GLfloat  zNear;
 
 
-    int result[18][1];
-    procOCL_I2I(tex1, tex2, w, h, result);
+    GLfloat  xFar;
+    GLfloat  yFar;
+    GLfloat  zFar;
 
-    for (int i = 0; i < 1; i++) {
-        //     LOGD("result %d x=%d y=%d", i, result[i][0], result[i][1]);
-    }
-
-    /*
-
-    switch (mode) {
-        case PROC_MODE_NO_PROC:
-        case PROC_MODE_CPU:
-            drawFrameProcCPU(w, h, tex2);
-            break;
-        case PROC_MODE_OCL_DIRECT:
-            procOCL_I2I(tex1, tex2, w, h);
-            break;
-
-        default:;
-            //LOGE("Unexpected processing mode: %d", mode);
-    }
-*/
-//    drawFrameProcCPU(w, h, tex2);
-
-
-}
-
-
-int boxSize =2;
-float model[16];
-extern "C" void onDraw(float *perspective, float *eyeView) {
-
-    // LOGE("on draw!");
-
-    modelView = eyeView;
-    Engine_setMVPMatrices(perspective, eyeView, model);
-    //  Engine_prepare_draw();
-    Engine_glBegin(GL_TRIANGLE_STRIP);
-    Engine_glColor3f(0, 1, 0);
-    Engine_glVertex3f(-20, -30, -20); // tl
-    Engine_glVertex3f(-20, -30, 20); // bl
-    Engine_glVertex3f(20, -30, -20); // tr
-    Engine_glVertex3f(20, -30, 20); // br
-
-    //
-    Engine_glEnd();
+    int viewport[] = {0, 0, maxWidth, maxHeight};
 
 
 
-    glEnable(GL_CULL_FACE);
-    Engine_glBegin(GL_TRIANGLE_STRIP);
-    Engine_glColor3f(1, 0, 0);
-    //bottom
-    Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY - boxSize); // tl
-    Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY + boxSize); // bl
-    Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY - boxSize); // tr
-    Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY + boxSize); // br
-    //top
-    //Engine_glColor3f(0, 1, 0);
-
-    Engine_glVertex3f(projectedTouchX - boxSize, -30+boxSize*2, projectedTouchY - boxSize); // tl
-    Engine_glVertex3f(projectedTouchX - boxSize, -30+boxSize*2, projectedTouchY + boxSize); // bl
-    Engine_glVertex3f(projectedTouchX + boxSize, -30+boxSize*2, projectedTouchY - boxSize); // tr
-    Engine_glVertex3f(projectedTouchX + boxSize, -30+boxSize*2, projectedTouchY + boxSize); // br
-    //front
-    //Engine_glColor3f(0, 0, 1);
-    Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY + boxSize); // bl
-    Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY + boxSize); // br
-    Engine_glVertex3f(projectedTouchX - boxSize, -30+boxSize*2, projectedTouchY + boxSize); // tl
-    Engine_glVertex3f(projectedTouchX + boxSize, -30+boxSize*2, projectedTouchY + boxSize); // tr
-    //back
-    Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY - boxSize); // tl
-    Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY - boxSize); // tr
-    Engine_glVertex3f(projectedTouchX - boxSize, -30+boxSize*2, projectedTouchY - boxSize); // tl
-    Engine_glVertex3f(projectedTouchX + boxSize, -30+boxSize*2, projectedTouchY - boxSize); // tr
-    //left
-    Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY - boxSize); // tl
-    Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY + boxSize); // bl
-    Engine_glVertex3f(projectedTouchX - boxSize, -30+boxSize*2, projectedTouchY - boxSize); // tl
-    Engine_glVertex3f(projectedTouchX - boxSize, -30+boxSize*2, projectedTouchY + boxSize); // bl
-    //right
-    Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY - boxSize); // tr
-    Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY + boxSize); // br
-    Engine_glVertex3f(projectedTouchX + boxSize, -30+boxSize*2, projectedTouchY - boxSize); // tr
-    Engine_glVertex3f(projectedTouchX + boxSize, -30+boxSize*2, projectedTouchY + boxSize); // br
-
-    // Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY - boxSize); // tl
-   // Engine_glVertex3f(projectedTouchX - boxSize, -30, projectedTouchY + boxSize); // bl
-   // Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY - boxSize); // tr
-   // Engine_glVertex3f(projectedTouchX + boxSize, -30, projectedTouchY + boxSize); // br
-    Engine_glEnd();
-    glDisable(GL_CULL_FACE);
+    GLint resultOne = gluUnProject(x, y, 0, mModelView,  mPerspective, viewport, &xNear,&yNear,&zNear);
+    GLint resultTwo = gluUnProject(x, y, 1, mModelView,  mPerspective, viewport, &xFar,&yFar,&zFar);
 
 
-};
-extern "C" void onSurfaceCreated(int w, int h) {
-    Engine_setup_opengl(w, h);
-    LOGE("surface created");
-    width = w;
-    height = h;
 
-};
-extern "C" void onSurfaceChanged(int w, int h) {
-    Engine_on_surface_changed(w, h);
-    LOGE("surface changed");
-    width = w;
-    height = h;
-
-};
-
-extern "C" void onHeadTransform(float *quat, float *forwardVector,float *rightVector) {
-    for (int i = 0; i < 4; i++) {
-        mHeadRotationQuaternion[i] = quat[i];
-        mHeadForwardVector[i] = forwardVector[i];
-        mHeadRightVector[i]=rightVector[i];
-    }
-    //LOGD("head rotation %f %f ",quaternion[0],quaternion[3]);
-}
+            output[0]=xFar- xNear;
+            output[1]=yFar - yNear;
+            output[2]=zFar - zNear;
 
 
-extern "C" void onTouch(float x, float y) {
+    float delta = -20.0f/output[1];
+    output[0]*=delta;
+    output[1]*=delta;
+    output[2]*=delta;
+    LOGD("near %f %f %f far %f %f %f ",xNear,yNear,zNear,xFar,yFar,zFar);
+
+
+     //   gluUnProject(x,y,0,modelView,)
+
 
     //float qX = mHeadRotationQuaternion[0];
     //float qY = mHeadRotationQuaternion[1];
     //float qZ = mHeadRotationQuaternion[2];
     //float qW = mHeadRotationQuaternion[3];
 
+
+
+    //sin2(t) + cos2(t) = 1
+    //sin(t)=\/1-cos2(t)
+
+    //R= (cost -sint
+    //    sint  cost)
 
     //float rotationMatrix[] =
     //        {1 - 2*qY*qY - 2*qZ*qZ , 2*qX*qY + 2*qW*qZ, 2*qX*qZ - 2*qW*qY,
@@ -159,76 +87,249 @@ extern "C" void onTouch(float x, float y) {
     //float zPrime = mHeadForwardVector[0]*rotationMatrix[6]+mHeadForwardVector[1]*rotationMatrix[7]+mHeadForwardVector[2]*rotationMatrix[8];
 
 
-
-
-    float normalizedX = (float) ((x) * 2.0f / width - 1.0);
-    float normalizedY = (float) ((y) * 2.0f / height - 1.0);
-
-    // float direction[] = {modelView[2], modelView[6],modelView[10]};
-
-    // float direction[] = forward;
-    // float xPrime = direction[0]*quaternion[0]+direction[2]*quaternion[1];
-    // float yPrime = direction[0]*quaternion[2]+direction[2]*quaternion[3];
-
-    //LOGD("prime x %f  prime y %f prime z ",xPrime,yPrime,zPrime);
-
-  //  LOGD("prime rotation   %f %f %f %f %f %f %f %f %F ", rotationMatrix[0],rotationMatrix[1],
-  //       rotationMatrix[2],rotationMatrix[3],rotationMatrix[4],rotationMatrix[5]
-  //  ,rotationMatrix[6],rotationMatrix[7],rotationMatrix[8]);
-
-
-    LOGD("prime forward %f %f %f ",mHeadForwardVector[0],mHeadForwardVector[1],mHeadForwardVector[2]);
-    LOGD("prime right %f %f %f ",mHeadRightVector[0],mHeadRightVector[1],mHeadRightVector[2]);
-
-    //if(mHeadRightVector[2]>0)
-
-
-
-    //sin2(t) + cos2(t) = 1
-    //sin(t)=\/1-cos2(t)
-
-    //R= (cost -sint
-    //    sint  cost)
-
-
-
-    int mark = mHeadRightVector[2]>0?1:-1;
-    float cos = mHeadRightVector[0];
-    float sin = sqrtf(1-cos*cos);
-
     //float m2drMatrix[] = {cos,-sin,
     //                      sin,cos};
 
-    float normalizedRotatedX = (normalizedX * cos -normalizedY*sin);
-    float normalizedRotatedY =( normalizedX  *sin + normalizedY*cos);
 
-    //normalizedRotatedX*=mark;
-    //normalizedRotatedY*=mark;
-    LOGD("nX=%f nY=%f nrX=%f nrY=%f, mark=%d",normalizedX,normalizedX,normalizedRotatedX,normalizedRotatedY,mark);
+/*
 
+    float normalizedX = (float) ((x) * 2.0f / maxWidth - 1.0);
+    float normalizedY = (float) ((y) * 2.0f / maxHeight - 1.0);
 
 
+    int mark = mHeadRightVector[2] > 0 ? 1 : -1;
+    float cos = mHeadRightVector[0];
+    float sin = sqrtf(1 - cos * cos) * mark;
 
 
+    float normalizedRotatedX = (normalizedX * cos - normalizedY * sin);
+    float normalizedRotatedY = (normalizedX * sin + normalizedY * cos);
+
+   // float normalizedRotatedX = normalizedX;
+   // float normalizedRotatedY = -normalizedY;
+    float vector[] = {normalizedRotatedX,0, normalizedRotatedY,  1};
+
+
+    float vx = vector[0] * modelView[0] + vector[1] * modelView[1] + vector[2] * modelView[2] + vector[3] *
+                                                                                                modelView[3];
+    float vy = vector[0] * modelView[4] + vector[1] * modelView[5] + vector[2] * modelView[6] + vector[3] *
+                                                                                                modelView[7];
+    float vz = vector[0] * modelView[8] + vector[1] * modelView[9] + vector[2] * modelView[10] + vector[3] *
+                                                                                                 modelView[11];
+    float vw = vector[0] * modelView[12] + vector[1] * modelView[13] + vector[2] * modelView[14] + vector[3] *
+                                                                                                   modelView[15];
+
+    vx/=vw;
+    vy/=vw;
+    vz/=vw;
+    vw/=vw;
+
+    LOGD("2d to 3d result %f %f %f %f %f  %f",vx,vy
+    ,vz,vw,x,y);
 
 
 
 
 
     float yDir = mHeadForwardVector[1];
-    float delta = -30.0f / yDir;
+    float delta = depth / yDir;
 
-    projectedTouchX = (normalizedRotatedX + mHeadForwardVector[0]) * delta;
-    projectedTouchY = ((mHeadForwardVector[2] + normalizedRotatedY) * delta);
-    //projectedTouchX=direction[0];
-    //projectedTouchY=direction[2];
+    output[0] =
+            (mHeadForwardVector[0]) * delta;
+    output[1] = (mHeadForwardVector[2]) * delta;
 
-    // LOGD("result %f %f %f %f  ",quaternion[0],quaternion[1],quaternion[2],quaternion[3]);
+   // output[0]=vx;
+   // output[1]=vy;
+   // output[2]=vz;
+*/
+}
+
+extern "C" void processFrame(int tex1, int tex2, int w, int h, int mode) {
 
 
-    //projectedTouchX=direction[0];
-    //projectedTouchY=direction[2];
-    //LOGD("on touch %f %f %d %d  ",x,y,width,height);
-    //LOGD("on touch %f %f %f %f  ",normalizedX,normalizedY,projectedTouchX,projectedTouchY);
+    procOCL_I2I(tex1, tex2, w, h, mProcessingResult);
+
+
+    for (int i = 0; i < 10; i++) {
+             LOGD("result %d x=%d y=%d", i, mProcessingResult[0][0], mProcessingResult[0][1]);
+    }
+
+}
+
+
+int boxSize = 1;
+float model[16];
+
+static void drawCube(float centerX, float centerY, float centerZ, float boxSize) {
+
+
+
+
+
+    float length =20;
+    float cost=1;
+    float sint=0;
+    float angle=0;
+    Engine_glBegin(GL_LINE_STRIP);
+    Engine_glColor3f(1, 1, 1);
+    for(int i=0;i<10;i++) {
+
+        angle =36*i;
+        float radians = angle*3.14f/180.0f;
+        cost = (float)cos(radians);
+        sint = sqrtf(1-cost*cost);
+        if(angle>180) sint=-sint;
+
+        Engine_glVertex3f(centerX, depth, centerY); // tl
+        Engine_glVertex3f(centerX +cost*length, depth, centerY + sint*length); // bl
+
+    }
+    Engine_glEnd();
+
+
+    glEnable(GL_CULL_FACE);
+    Engine_glBegin(GL_TRIANGLE_STRIP);
+    Engine_glColor3f(1, 0, 0);
+    //bottom
+    Engine_glVertex3f(centerX - boxSize, centerZ, centerY - boxSize); // tl
+    Engine_glVertex3f(centerX - boxSize, centerZ, centerY + boxSize); // bl
+    Engine_glVertex3f(centerX + boxSize, centerZ, centerY - boxSize); // tr
+    Engine_glVertex3f(centerX + boxSize, centerZ, centerY + boxSize); // br
+    //top
+    //Engine_glColor3f(0, 1, 0);
+
+    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
+                      centerY - boxSize); // tl
+    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
+                      centerY + boxSize); // bl
+    Engine_glVertex3f(centerX + boxSize, centerZ + boxSize * 2,
+                      centerY - boxSize); // tr
+    Engine_glVertex3f(centerX + boxSize, centerZ + boxSize * 2,
+                      centerY + boxSize); // br
+    //front
+    //Engine_glColor3f(0, 0, 1);
+    Engine_glVertex3f(centerX - boxSize, centerZ, centerY + boxSize); // bl
+    Engine_glVertex3f(centerX + boxSize, centerZ, centerY + boxSize); // br
+    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
+                      centerY + boxSize); // tl
+    Engine_glVertex3f(centerX + boxSize, centerZ + boxSize * 2,
+                      centerY + boxSize); // tr
+    //back
+    Engine_glVertex3f(centerX - boxSize, centerZ, centerY - boxSize); // tl
+    Engine_glVertex3f(centerX + boxSize, centerZ, centerY - boxSize); // tr
+    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
+                      centerY - boxSize); // tl
+    Engine_glVertex3f(centerX + boxSize,centerZ + boxSize * 2,
+                      centerY - boxSize); // tr
+    //left
+    Engine_glVertex3f(centerX - boxSize, centerZ, centerY - boxSize); // tl
+    Engine_glVertex3f(centerX - boxSize, centerZ, centerY + boxSize); // bl
+    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
+                      centerY - boxSize); // tl
+    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
+                      centerY + boxSize); // bl
+    //right
+    Engine_glVertex3f(centerX + boxSize, centerZ , centerY - boxSize); // tr
+    Engine_glVertex3f(centerX + boxSize, centerZ , centerY + boxSize); // br
+    Engine_glVertex3f(centerX + boxSize, centerZ  + boxSize * 2,
+                      centerY - boxSize); // tr
+    Engine_glVertex3f(centerX + boxSize, centerZ  + boxSize * 2,
+                      centerY + boxSize); // br
+
+    Engine_glEnd();
+    glDisable(GL_CULL_FACE);
+
+
+
+
+
+
+
+}
+
+extern "C" void onDraw(float *modelViewProjection, float *eyeView, float *perspective) {
+
+    // LOGE("on draw!");
+
+    for(int i=0;i<16;i++)
+    {
+        mModelView[i]=eyeView[i];
+        mPerspective[i]=perspective[i];
+        mModelViewProjection[i]=modelViewProjection[i];
+    }
+
+    Engine_setMVPMatrices(modelViewProjection, eyeView, model);
+    //  Engine_prepare_draw();
+
+
+    Engine_glBegin(GL_TRIANGLE_STRIP);
+    Engine_glColor3f(0, 1, 0);
+    Engine_glVertex3f(-200, depth, -200); // tl
+    Engine_glVertex3f(-200, depth, 200); // bl
+    Engine_glVertex3f(200, depth, -200); // tr
+    Engine_glVertex3f(200, depth, 200); // br
+    Engine_glEnd();
+
+/*
+
+    for(int i=0;i<10;i++)
+    {
+        float x = mProcessingResult[i][0];
+        if(x==0)x=640;
+        float y = 720-mProcessingResult[i][1];
+        if(y==0)y=360;
+        //if(mProcessingResult[i][0]>0 || mProcessingResult[i][1]>0)
+       // {
+        float output[3];
+        project2Dto3D(output,x,720-y,1280,720);
+        drawCube(output[0],output[2],depth,1);
+            //LOGD("draw cube x=%f y=%f",x, y);
+
+       // }
+    }
+*/
+    //LOGD("draw cube x=%f y=%f", projectedTouchX, projectedTouchY);
+
+    drawCube(projectedTouchX, projectedTouchY,depth, boxSize);
+
+};
+extern "C" void onSurfaceCreated(int w, int h) {
+    Engine_setup_opengl(w, h);
+    LOGE("surface created");
+    screenWidth = w;
+    screenHeight = h;
+
+};
+extern "C" void onSurfaceChanged(int w, int h) {
+    Engine_on_surface_changed(w, h);
+    LOGE("surface changed");
+    screenWidth = w;
+    screenHeight = h;
+
+};
+
+extern "C" void onHeadTransform(float *quat, float *forwardVector, float *rightVector) {
+    for (int i = 0; i < 4; i++) {
+        mHeadRotationQuaternion[i] = quat[i];
+        mHeadForwardVector[i] = forwardVector[i];
+        mHeadRightVector[i] = rightVector[i];
+    }
+    //LOGD("head rotation %f %f ",quaternion[0],quaternion[3]);
+}
+
+
+
+extern "C" void onTouch(float x, float y) {
+
+
+
+    LOGD("on touch %f %f ",x,y);
+    projectedTouchX=x;
+    projectedTouchY=y;
+    float output[3];
+    project2Dto3D(output,x,screenHeight-y,screenWidth,screenHeight);
+    projectedTouchX=output[0];
+    projectedTouchY=output[2];
+   // projectedTouchZ=output[2];
 
 }

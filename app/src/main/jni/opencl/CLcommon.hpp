@@ -17,5 +17,5 @@ static inline int getTimeInterval(int64_t startTime)
 {
     return int(getTimeMs() - startTime);
 }
-void procOCL_I2I(int tex1, int  tex2, int  w, int  h, int output[18][1]);
+void procOCL_I2I(int tex1, int  tex2, int  w, int  h, int output[18][2]);
 

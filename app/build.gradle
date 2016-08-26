@@ -29,6 +29,9 @@ model {
 
 
             cppFlags.add("-I${file("src/main/opencl")}".toString())
+            cppFlags.add("-I${file("src/main/glm")}".toString())
+            cppFlags.add("-I${file("src/main/glues")}".toString())
+
 
             //CFlags.add("-I${file("src/main/jni/opencl.CL")}".toString())
 
