@@ -488,7 +488,7 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
         //    GLES20.glEnable(GLES20.GL_DEPTH_TEST);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
-        //       cameraOpenCvRenderer.onDrawFrame(null);
+               cameraOpenCvRenderer.onDrawFrame(null);
         //build view matrix
 
         Matrix.setIdentityM(modelFloor, 0);

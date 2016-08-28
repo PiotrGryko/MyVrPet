@@ -110,6 +110,16 @@ const char kernel_edge_detection[] = \
     "} \n";
 
 
+
+/**
+ *
+ * line equation is ax+b=y
+ * pass cl_int2 buffer where for each n n.x=a and n.y =b
+ *
+ */
+
+
+/*
 const char kernel_radial_sweep[] = \
   "__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST; \n" \
   "__kernel void kernel_radial_sweep( \n" \
@@ -160,7 +170,154 @@ const char kernel_radial_sweep[] = \
         "} \n" \
         "}"\
         "} \n";
+*/
 
+/**
+ *
+ * This methods gets array of lines and array of points (detected lines) as an input.
+ * Returns array of nearest points to center that lays on each line.
+ *
+ * output = array to save results
+ * coors = array of points/detected edges
+ * imgOut = img to draw someting on. Temporary should be removed
+ * center = center point for radial swip
+ * lines =array of cl_float4. a & b from y=ax+b, xCoord and yCoord. Which indicate line direction
+ * size = number of lines
+ */
+
+const char kernel_radial_sweep[] = \
+  "__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST; \n" \
+  "__kernel void kernel_radial_sweep(" \
+  "__global int2 *output," \
+  "__global int2 *coords," \
+  "__write_only image2d_t imgOut,"\
+  "__private int2 center,"
+  "__global float3 *lines,"
+  "__private int size"
+  ") {" \
+
+  "const int2 pos = coords[get_global_size(1)*get_global_id(0)+get_global_id(1)]; \n" \
+  "write_imagef(imgOut, pos, (float4)(1.0f,0.0f,0.0f,0.0f)); \n" \
+
+  "for(int i=0;i<size;i++){"
+
+        "const float a = lines[i].x;"
+        "const float b = lines[i].y;"
+        "const int angle = (int)lines[i].z;"
+
+        "float equation = pos.x * a+b;"
+
+        "if(equation<=pos.y+15 && equation >=pos.y-15){"
+
+
+        "if((pos.x>=center.x && pos.y>=center.y && angle>=0 && angle <90)"
+        "||(pos.x<=center.x && pos.y>=center.y && angle>=90 && angle <180)"
+        "||(pos.x<=center.x && pos.y<=center.y && angle>=180 && angle <270)"
+        "||(pos.x>=center.x && pos.y<=center.y && angle>=270 && angle <360)"
+        "){"
+
+
+        "if(output[i].x==0 && output[i].y==0)"
+        "output[i]=pos;"
+
+        "else if(angle>45 && angle <=135 && pos.y<=output[i].y)"
+        "output[i]=pos;"
+
+        "else if(pos.x>=output[i].x && angle>135 && angle <225)"
+        "output[i]=pos;"
+
+        "else if(angle>225 && angle <315 && pos.y>=output[i].y)"
+        "output[i]=pos;"
+
+        "else if((angle>315 || (angle>=0 && angle <=45)) && pos.x<=output[i].x)"
+        "output[i]=pos;"
+
+        "}"
+
+
+        "}" \
+
+        "}"\
+
+
+
+        "}";
+
+
+
+/**
+ *
+ * line quation is ax+b=y
+ * pass cl_int2 buffer where for each n n.x=a and n.y =b
+ * all lines start from center point
+ *
+ * img_out = image to draw the result
+ * center = center of radial sweep
+ * edges = array of points from edge detection alghoritm
+ * lines =array of cl_float4. a & b from y=ax+b, xCoord and yCoord. Which indicate line direction
+ * size = number of lines
+ */
+
+
+
+
+const char kernel_draw_radial_sweep[] = \
+  "__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST; \n" \
+
+    "__kernel void kernel_draw_radial_sweep("
+    "__write_only image2d_t imgOut,"
+    "__private int2 center,"
+    "__global int2 *edges,"
+    "__global float3 *lines,"
+    "__private int size) {"
+
+
+    "const int2 pos =(int2)(get_global_id(0),get_global_id(1));" \
+
+        "for(int i=0;i<size;i++){"
+
+        "const float a = lines[i].x;"
+        "const float b = lines[i].y;"
+        "const int angle = (int)lines[i].z;"
+        "const float equation = pos.x * a+b;"
+
+
+
+        "if(equation<=pos.y+1 && equation >=pos.y-1){"
+
+
+        "if((pos.x>=center.x && pos.y>=center.y && angle>=0 && angle <90)"
+        "||(pos.x<=center.x && pos.y>=center.y && angle>=90 && angle <180)"
+        "||(pos.x<=center.x && pos.y<=center.y && angle>=180 && angle <270)"
+        "||(pos.x>=center.x && pos.y<=center.y && angle>=270 && angle <360)"
+        "){"
+
+
+        "if(edges[i].x==0 && edges[i].y==0)"
+        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
+
+        "else if(angle>45 && angle <=135 && pos.y<=edges[i].y)"
+        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
+
+        "else if(pos.x>=edges[i].x && angle>135 && angle <=225)"
+        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
+
+        "else if(angle>225 && angle <=315 && pos.y>=edges[i].y)"
+       "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
+
+        "else if((angle>315 || angle <=45) && pos.x<=edges[i].x)"
+        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
+
+
+
+
+        "}"
+
+        "}"
+        "}"
+        "}";
+
+/*
 
 const char kernel_draw_radial_sweep[] = \
   "__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST; \n" \
@@ -206,7 +363,7 @@ const char kernel_draw_radial_sweep[] = \
         "} \n" \
         "}"
         "} \n";
-
+*/
 
 cl::Context theContext;
 cl::CommandQueue theQueue;
@@ -275,8 +432,8 @@ extern "C" void initCL() {
 extern "C" void closeCL() {
 }
 
-#define GL_TEXTURE_2D 0x0DE1
 
+#define GL_TEXTURE_2D 0x0DE1
 float *createBlurMask(float sigma, int *maskSizePointer) {
     int maskSize = (int) ceil(3.0f * sigma);
     float *mask = new float[(maskSize * 2 + 1) * (maskSize * 2 + 1)];
@@ -298,6 +455,172 @@ float *createBlurMask(float sigma, int *maskSizePointer) {
 }
 
 
+static void clBlurrImage(cl::ImageGL imgIn, cl::ImageGL imgOut, int w, int h)
+{
+
+    int maskSize;
+    float *mask = createBlurMask(1.5f, &maskSize);
+
+    cl::Buffer clMask(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                      sizeof(float) * (maskSize * 2 + 1) * (maskSize * 2 + 1), mask);
+
+
+    cl::Kernel blur(blurrProgram, "kernel_blur"); //TODO: may be done once
+    blur.setArg(0, imgIn);
+    blur.setArg(1, imgOut);
+    blur.setArg(2, clMask);
+    blur.setArg(3, maskSize);
+
+
+    theQueue.finish();
+
+    theQueue.enqueueNDRangeKernel(blur, cl::NullRange, cl::NDRange(w, h), cl::NullRange);
+    theQueue.finish();
+}
+
+static cl::Buffer clEdgeDetection(cl::ImageGL imgIn, cl::ImageGL imgOut, int w, int h)
+{
+
+    cl::Buffer bufferSize(theContext, CL_MEM_READ_WRITE, sizeof(long));
+    cl::Buffer bufferCoords(theContext, CL_MEM_READ_WRITE, sizeof(cl_int2) * w * h);
+
+    cl::Kernel edge_detection(edgeDetectionProgram,
+                              "kernel_edge_detection");
+    edge_detection.setArg(0, imgIn);
+    edge_detection.setArg(1, imgOut);
+    edge_detection.setArg(2, bufferCoords);
+    edge_detection.setArg(3, bufferSize);
+
+
+    theQueue.finish();
+
+    theQueue.enqueueNDRangeKernel(edge_detection, cl::NullRange, cl::NDRange(w, h), cl::NullRange);
+    theQueue.finish();
+    return bufferCoords;
+}
+
+static cl::Buffer clRadialSweepTwo(cl::ImageGL imgOut, int w, int h, cl::Buffer bufferCoords)
+{
+
+
+
+    cl::Buffer outputCoords(theContext, CL_MEM_READ_WRITE,
+                            sizeof(cl_int2) * 18, NULL);
+
+    cl::Kernel radial_sweep(radialSweepProgram, "kernel_radial_sweep"); //TODO: may be done once
+    radial_sweep.setArg(0, outputCoords);
+    radial_sweep.setArg(1, bufferCoords);
+    radial_sweep.setArg(2, imgOut);
+
+    theQueue.finish();
+
+    theQueue.enqueueNDRangeKernel(radial_sweep, cl::NullRange, cl::NDRange(w, h),
+                                  cl::NullRange);
+    theQueue.finish();
+    return outputCoords;
+}
+
+static cl::Buffer clRadialSweep(cl::ImageGL imgOut, int w, int h, cl::Buffer bufferCoords,cl_int2 center, cl::Buffer lines,int size)
+{
+/**
+ *
+ * This methods gets array of lines and array of points (detected lines) as an input.
+ * Returns array of nearest points to center that lays on each line.
+ *
+ * output = array to save results
+ * coors = array of points/detected edges
+ * imgOut = img to draw someting on. Temporary should be removed
+ * center = center point for radial swip
+ * lines =array of cl_float4. a & b from y=ax+b, xCoord and yCoord. Which indicate line direction
+ * size = number of lines
+ */
+
+
+    cl::Buffer outputCoords(theContext, CL_MEM_READ_WRITE,
+                            sizeof(cl_int2) * 18, NULL);
+
+    cl::Kernel radial_sweep(radialSweepProgram, "kernel_radial_sweep"); //TODO: may be done once
+    radial_sweep.setArg(0, outputCoords);
+    radial_sweep.setArg(1, bufferCoords);
+    radial_sweep.setArg(2, imgOut);
+    radial_sweep.setArg(3, center);
+    radial_sweep.setArg(4, lines);
+    radial_sweep.setArg(5, size);
+
+
+    theQueue.finish();
+
+    theQueue.enqueueNDRangeKernel(radial_sweep, cl::NullRange, cl::NDRange(w, h),
+                                  cl::NullRange);
+    theQueue.finish();
+    return outputCoords;
+}
+
+/**
+ *
+ * line quation is ax+b=y
+ * pass cl_int2 buffer where for each n n.x=a and n.y =b
+ * all lines start from center point
+ *
+ * img_out = image to draw the result
+ * center = center of radial sweep
+ * edges = array of points from edge detection alghoritm
+ * lines = array of line equations
+ * size = number of lines
+ */
+
+static void clDrawLinesTwo(cl::ImageGL imgOut, int w, int h,cl_int2 center, cl::Buffer outputCoords,cl_int2 *ends, cl::Buffer lines,int size)
+{
+
+
+
+    //cl_int2 ends[1]={{1000,360}};
+
+
+
+
+
+    cl::Buffer endsBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                           sizeof(cl_int2) * size, ends);
+
+
+    cl::Kernel test_radial_sweep(drawRadialSweepProgram,
+                                 "kernel_draw_radial_sweep"); //TODO: may be done once
+    test_radial_sweep.setArg(0, imgOut);
+    test_radial_sweep.setArg(1, center);
+    test_radial_sweep.setArg(2, outputCoords);
+    test_radial_sweep.setArg(3, lines);
+    test_radial_sweep.setArg(4, size);
+
+
+    theQueue.finish();
+
+    theQueue.enqueueNDRangeKernel(test_radial_sweep, cl::NullRange, cl::NDRange(w, h),
+                                  cl::NullRange);
+
+
+    theQueue.finish();
+}
+
+
+static void clDrawLines(cl::ImageGL imgOut, int w, int h, cl::Buffer outputCoords)
+{
+
+
+
+    cl::Kernel test_radial_sweep(drawRadialSweepProgram,
+                                 "kernel_draw_radial_sweep"); //TODO: may be done once
+    test_radial_sweep.setArg(0, imgOut);
+    test_radial_sweep.setArg(1, outputCoords);
+    theQueue.finish();
+
+    theQueue.enqueueNDRangeKernel(test_radial_sweep, cl::NullRange, cl::NDRange(w, h),
+                                  cl::NullRange);
+
+
+    theQueue.finish();
+}
+
 void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2]) {
     cl_int2 result[18];
 
@@ -307,92 +630,102 @@ void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2]) {
     }
 
 
-    cl::ImageGL imgInBlurr(theContext, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, texIn);
-    cl::ImageGL imgOutBlurr(theContext, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, texOut);
+    cl::ImageGL imgIn(theContext, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, texIn);
+    cl::ImageGL imgOut(theContext, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, texOut);
 
 
     std::vector<cl::Memory> images;
-    images.push_back(imgInBlurr);
-    images.push_back(imgOutBlurr);
-
+    images.push_back(imgIn);
+    images.push_back(imgOut);
     theQueue.enqueueAcquireGLObjects(&images);
     theQueue.finish();
 
 
-    int maskSize;
-    float *mask = createBlurMask(1.5f, &maskSize);
+
+
+
+    cl::Buffer bufferCoords = clEdgeDetection(imgIn,imgOut,w,h);
+    //clDrawLines(imgOut,w,h,outputCoords);
 
 
 
 
-    //maskSize=1;
-    // Create buffer for mask and transfer it to the device
-    cl::Buffer clMask(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                      sizeof(float) * (maskSize * 2 + 1) * (maskSize * 2 + 1), mask);
 
 
-    cl::Kernel blur(blurrProgram, "kernel_blur"); //TODO: may be done once
-    blur.setArg(0, imgInBlurr);
-    blur.setArg(1, imgOutBlurr);
-    blur.setArg(2, clMask);
-    blur.setArg(3, maskSize);
+    /*
+  *
+  * create line equation from
+  *
+  * 360 = 600*a +b
+  * 360 = 1000*a+b
+  *
+  * a==0
+  * b==360
+  *
+  */
 
 
-    theQueue.finish();
-
-    //theQueue.enqueueNDRangeKernel(blur, cl::NullRange, cl::NDRange(w, h), cl::NullRange);
-    theQueue.finish();
-
-
-    cl::Buffer bufferSize(theContext, CL_MEM_READ_WRITE, sizeof(long));
-    cl::Buffer bufferCoords(theContext, CL_MEM_READ_WRITE, sizeof(cl_int2) * w * h);
-
-    cl::Kernel edge_detection(edgeDetectionProgram,
-                              "kernel_edge_detection");
-    edge_detection.setArg(0, imgInBlurr);
-    edge_detection.setArg(1, imgOutBlurr);
-    edge_detection.setArg(2, bufferCoords);
-    edge_detection.setArg(3, bufferSize);
+    //lines count
+    int size = 10;
+    //center point
+    cl_int2 center = {600,360};
+    cl_float3 lines[size];
+    cl_int2 ends[size];
 
 
-    theQueue.finish();
+    float length =300;
+    float cost=1;
+    float sint=0;
+    float angle=0;
+    for(int i=0;i<size;i++) {
 
-    theQueue.enqueueNDRangeKernel(edge_detection, cl::NullRange, cl::NDRange(w, h), cl::NullRange);
-    theQueue.finish();
+        angle =(360/size)*i;
+        float radians = angle*3.14f/180.0f;
+        cost = (float)cos(radians);
+        sint = sqrtf(1-cost*cost);
+        if(angle>180) sint=-sint;
 
-    long size[] = {0};
-    theQueue.enqueueReadBuffer(bufferSize, CL_TRUE, 0, sizeof(long), size);
+        cl_float2 point = {center.s[0]+cost*length,center.s[1]+sint*length};
+        ends[i]={(int)point.s[0],(int)point.s[1]};
 
 
-    cl::Buffer outputCoords(theContext, CL_MEM_READ_WRITE,
-                            sizeof(cl_int2) * 18, NULL);
+        LOGD("%d line point %f %f %f",i,point.s[0],point.s[1], angle);
 
-    cl::Kernel radial_sweep(radialSweepProgram, "kernel_radial_sweep"); //TODO: may be done once
-    radial_sweep.setArg(0, outputCoords);
-    radial_sweep.setArg(1, bufferCoords);
-    radial_sweep.setArg(2, imgOutBlurr);
+        //solution for linear equation that gives 'a' nad 'b' from y=ax+b
 
-    theQueue.finish();
+        //y = ax+b
+        //point.s[1]=a*point.s[0]+b
+        //b = point.s[1]- point.s[0]*a;
+        //center.s[1]=center.s[0]*a + point.s[1] - point.s[0]*a;
+        //center.s[1]=a*(center.s[0]-point.s[0])+point.s[1];
+        //center.s[1]-point.s[1]=a*(center.s[0]-point.s[0])
 
-    theQueue.enqueueNDRangeKernel(radial_sweep, cl::NullRange, cl::NDRange(w, h),
-                                  cl::NullRange);
-    theQueue.finish();
+        float a= (center.s[1]-point.s[1])/(center.s[0]-point.s[0]);
+        float b= point.s[1]-(point.s[0] * (center.s[1]-point.s[1])/(center.s[0]-point.s[0]));
+
+
+        lines[i] = {a,b,angle};
+
+
+    }
+
+
+    cl::Buffer linesBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                           sizeof(cl_float4) * size, lines);
+
+    cl::Buffer outputCoords = clRadialSweep(imgOut,w,h,bufferCoords,center,linesBuffer,size);
+    clDrawLinesTwo(imgOut,w,h,center,outputCoords,ends,linesBuffer,size);
+
+
+
+
+       theQueue.enqueueReleaseGLObjects(&images);
+       theQueue.finish();
 
     theQueue.enqueueReadBuffer(outputCoords, CL_TRUE, 0, sizeof(cl_int2) * 18, result);
 
 
 
-    cl::Kernel test_radial_sweep(drawRadialSweepProgram,
-                                 "kernel_draw_radial_sweep"); //TODO: may be done once
-    test_radial_sweep.setArg(0, imgOutBlurr);
-    test_radial_sweep.setArg(1, outputCoords);
-    theQueue.finish();
-
-    theQueue.enqueueNDRangeKernel(test_radial_sweep, cl::NullRange, cl::NDRange(w, h),
-                                  cl::NullRange);
-
-
-    theQueue.finish();
 
 
     for(int i=0;i<18;i++)

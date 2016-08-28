@@ -171,7 +171,7 @@ static void drawCube(float centerX, float centerY, float centerZ, float boxSize)
     float sint=0;
     float angle=0;
     Engine_glBegin(GL_LINE_STRIP);
-    Engine_glColor3f(1, 1, 1);
+    Engine_glColor3f(0, 0, 0);
     for(int i=0;i<10;i++) {
 
         angle =36*i;
@@ -260,7 +260,7 @@ extern "C" void onDraw(float *modelViewProjection, float *eyeView, float *perspe
 
     Engine_setMVPMatrices(modelViewProjection, eyeView, model);
     //  Engine_prepare_draw();
-
+/*
 
     Engine_glBegin(GL_TRIANGLE_STRIP);
     Engine_glColor3f(0, 1, 0);
@@ -269,7 +269,7 @@ extern "C" void onDraw(float *modelViewProjection, float *eyeView, float *perspe
     Engine_glVertex3f(200, depth, -200); // tr
     Engine_glVertex3f(200, depth, 200); // br
     Engine_glEnd();
-
+*/
 /*
 
     for(int i=0;i<10;i++)
