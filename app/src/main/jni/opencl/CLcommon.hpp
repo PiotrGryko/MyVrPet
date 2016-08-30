@@ -1,10 +1,15 @@
 #include <android/log.h>
+#include <CL/cl.hpp>
+
 #define LOG_TAG "JNIpart"
+
 //#define LOGD(...)
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
 
 #include <time.h> // clock_gettime
+
+
 
 static inline int64_t getTimeMs()
 {
@@ -17,5 +22,4 @@ static inline int getTimeInterval(int64_t startTime)
 {
     return int(getTimeMs() - startTime);
 }
-void procOCL_I2I(int tex1, int  tex2, int  w, int  h, int output[18][2]);
-
+void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2], int fanSize, cl_int2 center,cl_float2 *linesPoints);

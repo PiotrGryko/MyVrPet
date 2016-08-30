@@ -1,7 +1,6 @@
 #define __CL_ENABLE_EXCEPTIONS
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS /*let's give a chance for OpenCL 1.1 devices*/
 
-#include <CL/cl.hpp>
 
 
 #include <GLES2/gl2.h>
@@ -520,6 +519,7 @@ static cl::Buffer clRadialSweepTwo(cl::ImageGL imgOut, int w, int h, cl::Buffer 
     return outputCoords;
 }
 
+
 static cl::Buffer clRadialSweep(cl::ImageGL imgOut, int w, int h, cl::Buffer bufferCoords,cl_int2 center, cl::Buffer lines,int size)
 {
 /**
@@ -621,7 +621,34 @@ static void clDrawLines(cl::ImageGL imgOut, int w, int h, cl::Buffer outputCoord
     theQueue.finish();
 }
 
-void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2]) {
+
+static void clPrepareLines(cl_int2 center, cl_float2 *points, int size, cl_float3 *linesOutput)
+{
+
+    float PI = 3.14;
+
+    for(int i=0;i<size;i++)
+    {
+
+        float dx  = points[i].s[0]-center.s[0];
+        float dy = points[i].s[1]-center.s[1];
+        float rads = atan2f(dy,dx);
+        float degress = rads*180.0f/PI;
+        if(degress<0)
+            degress=360+degress;
+
+        float a= (center.s[1]-points[i].s[1])/(center.s[0]-points[i].s[0]);
+        float b= points[i].s[1]-(points[i].s[0] * (center.s[1]-points[i].s[1])/(center.s[0]-points[i].s[0]));
+
+
+        linesOutput[i]={a,b,degress};
+
+        LOGD("prepare lines %d %d %d %f %f %f %f %f ",i,center.s[0],center.s[1],points[i].s[0],points[i].s[1],degress,a,b);
+    }
+
+}
+
+void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2], int fanSize, cl_int2 center,cl_float2 *linesPoints) {
     cl_int2 result[18];
 
     if (!haveOpenCL) {
@@ -640,81 +667,21 @@ void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2]) {
     theQueue.enqueueAcquireGLObjects(&images);
     theQueue.finish();
 
-
-
-
-
     cl::Buffer bufferCoords = clEdgeDetection(imgIn,imgOut,w,h);
-    //clDrawLines(imgOut,w,h,outputCoords);
+
+    cl_float3 lines[fanSize];
+    cl_int2 ends[fanSize];
 
 
 
-
-
-
-    /*
-  *
-  * create line equation from
-  *
-  * 360 = 600*a +b
-  * 360 = 1000*a+b
-  *
-  * a==0
-  * b==360
-  *
-  */
-
-
-    //lines count
-    int size = 10;
-    //center point
-    cl_int2 center = {600,360};
-    cl_float3 lines[size];
-    cl_int2 ends[size];
-
-
-    float length =300;
-    float cost=1;
-    float sint=0;
-    float angle=0;
-    for(int i=0;i<size;i++) {
-
-        angle =(360/size)*i;
-        float radians = angle*3.14f/180.0f;
-        cost = (float)cos(radians);
-        sint = sqrtf(1-cost*cost);
-        if(angle>180) sint=-sint;
-
-        cl_float2 point = {center.s[0]+cost*length,center.s[1]+sint*length};
-        ends[i]={(int)point.s[0],(int)point.s[1]};
-
-
-        LOGD("%d line point %f %f %f",i,point.s[0],point.s[1], angle);
-
-        //solution for linear equation that gives 'a' nad 'b' from y=ax+b
-
-        //y = ax+b
-        //point.s[1]=a*point.s[0]+b
-        //b = point.s[1]- point.s[0]*a;
-        //center.s[1]=center.s[0]*a + point.s[1] - point.s[0]*a;
-        //center.s[1]=a*(center.s[0]-point.s[0])+point.s[1];
-        //center.s[1]-point.s[1]=a*(center.s[0]-point.s[0])
-
-        float a= (center.s[1]-point.s[1])/(center.s[0]-point.s[0]);
-        float b= point.s[1]-(point.s[0] * (center.s[1]-point.s[1])/(center.s[0]-point.s[0]));
-
-
-        lines[i] = {a,b,angle};
-
-
-    }
+    clPrepareLines(center,linesPoints,fanSize,lines);
 
 
     cl::Buffer linesBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                           sizeof(cl_float4) * size, lines);
+                           sizeof(cl_float4) * fanSize, lines);
 
-    cl::Buffer outputCoords = clRadialSweep(imgOut,w,h,bufferCoords,center,linesBuffer,size);
-    clDrawLinesTwo(imgOut,w,h,center,outputCoords,ends,linesBuffer,size);
+    cl::Buffer outputCoords = clRadialSweep(imgOut,w,h,bufferCoords,center,linesBuffer,fanSize);
+    clDrawLinesTwo(imgOut,w,h,center,outputCoords,ends,linesBuffer,fanSize);
 
 
 
