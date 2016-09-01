@@ -118,58 +118,6 @@ const char kernel_edge_detection[] = \
  */
 
 
-/*
-const char kernel_radial_sweep[] = \
-  "__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST; \n" \
-  "__kernel void kernel_radial_sweep( \n" \
-  "__global int2 *output, \n" \
-  "__global int2 *coords, \n" \
-  "__write_only image2d_t imgOut"\
-  ") { \n" \
-  "const int2 pos = coords[get_global_size(1)*get_global_id(0)+get_global_id(1)]; \n" \
-  "write_imagef(imgOut, pos, (float4)(1.0f,0.0f,0.0f,0.0f)); \n" \
-
-        "const int2 center = (int2)(600,360);"\
-  "for(int i=0;i<10;i++){"
-        "const int angle = 36*i;"\
-  "const float PI = 3.14;"
-        "const float radians = angle*PI/180.0f;"
-        "const float a = tan(radians);"
-        "float n = center.y - a * center.x;"
-
-
-        "float equation = pos.x * a+n;"
-        "if(equation<=pos.y+15 && equation >=pos.y-15){"
-
-
-        "if((pos.x>=center.x && pos.y>=center.y && angle>=0 && angle <90)"
-        "||(pos.x<=center.x && pos.y>=center.y && angle>=90 && angle <180)"
-        "||(pos.x<=center.x && pos.y<=center.y && angle>=180 && angle <270)"
-        "||(pos.x>=center.x && pos.y<=center.y && angle>=270 && angle <360)"
-        "){"
-
-
-        "if(output[i].x==0 && output[i].y==0)"
-        "output[i]=pos;"
-
-        "else if(angle>45 && angle <=135 && pos.y<=output[i].y)"
-        "output[i]=pos;"
-
-        "else if(pos.x>=output[i].x && angle>135 && angle <225)"
-        "output[i]=pos;"
-
-        "else if(angle>225 && angle <315 && pos.y>=output[i].y)"
-        "output[i]=pos;"
-
-        "else if((angle>315 || (angle>=0 && angle <=45)) && pos.x<=output[i].x)"
-        "output[i]=pos;"
-
-        "}"
-
-        "} \n" \
-        "}"\
-        "} \n";
-*/
 
 /**
  *
@@ -316,53 +264,7 @@ const char kernel_draw_radial_sweep[] = \
         "}"
         "}";
 
-/*
 
-const char kernel_draw_radial_sweep[] = \
-  "__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST; \n" \
-
-        "__kernel void kernel_draw_radial_sweep( \n" \
-    "__write_only image2d_t imgOut,"\
-    "__global int2 *edges \n" \
-    "    ) { \n" \
-    "    const int2 pos =(int2)(get_global_id(0),get_global_id(1)); \n" \
-    "const int2 center = (int2)(600,360);"\
-    "for(int i=0;i<10;i++){"
-        "const int angle =36*i;"\
-        "const float PI = 3.14;"
-        "const float radians = angle*PI/180.0f;"
-        "const float a = tan(radians);"
-        "float n = center.y - a * center.x;"
-
-        "float equation = pos.x * a+n;"
-        "if(equation<=pos.y+1 && equation >=pos.y-1){"
-        "if((pos.x>=center.x && pos.y>=center.y && angle>=0 && angle <90)"
-        "||(pos.x<=center.x && pos.y>=center.y && angle>=90 && angle <180)"
-        "||(pos.x<=center.x && pos.y<=center.y && angle>=180 && angle <270)"
-        "||(pos.x>=center.x && pos.y<=center.y && angle>=270 && angle <360)"
-        "){"
-
-        "if(edges[i].x==0 && edges[i].y==0)"
-        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
-
-        "else if(angle>45 && angle <=135 && pos.y<=edges[i].y)"
-        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
-
-        "else if(pos.x>=edges[i].x && angle>135 && angle <225)"
-        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
-
-        "else if(angle>225 && angle <315 && pos.y>=edges[i].y)"
-        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
-
-        "else if((angle>315 || (angle>=0 && angle <=45)) && pos.x<=edges[i].x)"
-        "write_imagef(imgOut, pos, (float4)(1.0f,1.0f,1.0f,0.0f));"
-
-
-        "}"\
-        "} \n" \
-        "}"
-        "} \n";
-*/
 
 cl::Context theContext;
 cl::CommandQueue theQueue;
@@ -498,26 +400,6 @@ static cl::Buffer clEdgeDetection(cl::ImageGL imgIn, cl::ImageGL imgOut, int w, 
     return bufferCoords;
 }
 
-static cl::Buffer clRadialSweepTwo(cl::ImageGL imgOut, int w, int h, cl::Buffer bufferCoords)
-{
-
-
-
-    cl::Buffer outputCoords(theContext, CL_MEM_READ_WRITE,
-                            sizeof(cl_int2) * 18, NULL);
-
-    cl::Kernel radial_sweep(radialSweepProgram, "kernel_radial_sweep"); //TODO: may be done once
-    radial_sweep.setArg(0, outputCoords);
-    radial_sweep.setArg(1, bufferCoords);
-    radial_sweep.setArg(2, imgOut);
-
-    theQueue.finish();
-
-    theQueue.enqueueNDRangeKernel(radial_sweep, cl::NullRange, cl::NDRange(w, h),
-                                  cl::NullRange);
-    theQueue.finish();
-    return outputCoords;
-}
 
 
 static cl::Buffer clRadialSweep(cl::ImageGL imgOut, int w, int h, cl::Buffer bufferCoords,cl_int2 center, cl::Buffer lines,int size)
@@ -574,15 +456,6 @@ static void clDrawLinesTwo(cl::ImageGL imgOut, int w, int h,cl_int2 center, cl::
 
 
 
-    //cl_int2 ends[1]={{1000,360}};
-
-
-
-
-
-    cl::Buffer endsBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                           sizeof(cl_int2) * size, ends);
-
 
     cl::Kernel test_radial_sweep(drawRadialSweepProgram,
                                  "kernel_draw_radial_sweep"); //TODO: may be done once
@@ -603,27 +476,20 @@ static void clDrawLinesTwo(cl::ImageGL imgOut, int w, int h,cl_int2 center, cl::
 }
 
 
-static void clDrawLines(cl::ImageGL imgOut, int w, int h, cl::Buffer outputCoords)
-{
-
-
-
-    cl::Kernel test_radial_sweep(drawRadialSweepProgram,
-                                 "kernel_draw_radial_sweep"); //TODO: may be done once
-    test_radial_sweep.setArg(0, imgOut);
-    test_radial_sweep.setArg(1, outputCoords);
-    theQueue.finish();
-
-    theQueue.enqueueNDRangeKernel(test_radial_sweep, cl::NullRange, cl::NDRange(w, h),
-                                  cl::NullRange);
-
-
-    theQueue.finish();
-}
 
 
 static void clPrepareLines(cl_int2 center, cl_float2 *points, int size, cl_float3 *linesOutput)
 {
+
+
+/**
+ *
+ * Takes center starting point, and array of end points.
+ * Returns representation of lines that lays on center and each end point.
+ * Each item from return array = {a,b,angle}, where a & b comes from y=ax+b
+ *
+ *
+ */
 
     float PI = 3.14;
 
@@ -648,12 +514,12 @@ static void clPrepareLines(cl_int2 center, cl_float2 *points, int size, cl_float
 
 }
 
-void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2], int fanSize, cl_int2 center,cl_float2 *linesPoints) {
-    cl_int2 result[18];
+cl_int2* procOCL_I2I(int texIn, int texOut, int w, int h, int fanSize, cl_int2 center,cl_float2 *linesPoints, bool debug) {
+    cl_int2 result[fanSize];
 
     if (!haveOpenCL) {
         LOGE("OpenCL isn't initialized");
-        return;
+        return result;
     }
 
 
@@ -681,65 +547,21 @@ void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2], int fan
                            sizeof(cl_float4) * fanSize, lines);
 
     cl::Buffer outputCoords = clRadialSweep(imgOut,w,h,bufferCoords,center,linesBuffer,fanSize);
+    if(debug)
     clDrawLinesTwo(imgOut,w,h,center,outputCoords,ends,linesBuffer,fanSize);
 
 
-
-
-       theQueue.enqueueReleaseGLObjects(&images);
-       theQueue.finish();
+    theQueue.enqueueReleaseGLObjects(&images);
+    theQueue.finish();
 
     theQueue.enqueueReadBuffer(outputCoords, CL_TRUE, 0, sizeof(cl_int2) * 18, result);
 
 
 
-
-
-    for(int i=0;i<18;i++)
-    {
-        output[i][0]=result[i].s[0];
-        output[i][1]=result[i].s[1];
-
-    }
-
-    return;
+    return result;
 
 }
 
 
-void drawFrameProcCPU(int w, int h, int texOut) {
-    LOGD("Processing on CPU");
-    int64_t t;
-
-    // let's modify pixels in FBO texture in C++ code (on CPU)
-    static cv::Mat m;
-    m.create(h, w, CV_8UC4);
-
-    // read
-    t = getTimeMs();
-    // expecting FBO to be bound
-    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, m.data);
-    LOGD("glReadPixels() costs %d ms", getTimeInterval(t));
-
-
-    /*
-   // modify
-    t = getTimeMs();
-    cv::Laplacian(m, m, CV_8U);
-    m *= 10;
-    LOGD("Laplacian() costs %d ms", getTimeInterval(t));
-*/
-    // write back
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texOut);
-    // t = getTimeMs();
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, m.data);
-    LOGD("glTexSubImage2D() costs %d ms", getTimeInterval(t));
-}
-
-
-enum ProcMode {
-    PROC_MODE_NO_PROC = 0, PROC_MODE_CPU = 1, PROC_MODE_OCL_DIRECT = 2, PROC_MODE_OCL_OCV = 3
-};
 
 

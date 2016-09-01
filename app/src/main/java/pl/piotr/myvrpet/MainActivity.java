@@ -115,12 +115,13 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
 
     private CameraOpecCVRendererBase cameraOpenCvRenderer;
-    private Pet pet;
-    private Floor floor;
-    private Floor floor2;
+
 
     private float touchX;
     private float touchY;
+
+    private int mRequestedWidth = 1280;
+    private int mRequestedHeight = 720;
 
     //private HelloWorld test;
 
@@ -215,11 +216,6 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
             @Override
             public boolean onCameraTexture(int texIn, int texOut, int width, int height) {
 
-                //Log.d(TAG,"on camera texture");
-
-
-                //if(procMode == NativePart.PROCESSING_MODE_NO_PROCESSING)
-                ///    return false;
 
                 NativePart.processFrame(texIn, texOut, width, height, 2);
                 return true;
@@ -230,18 +226,13 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
 
         if (android.os.Build.VERSION.SDK_INT >= 21) {
-            cameraOpenCvRenderer = new CameraOpenCvRendererV21(listener, this);
+            cameraOpenCvRenderer = new CameraOpenCvRendererV21(listener, this,mRequestedWidth,mRequestedHeight);
             Log.d(TAG, "camera renderer v21");
         } else {
-            cameraOpenCvRenderer = new CameraOpenCvRendererV15(listener);
+            cameraOpenCvRenderer = new CameraOpenCvRendererV15(listener,mRequestedWidth,mRequestedHeight);
             Log.d(TAG, "camera renderer v15");
 
         }
-        pet = new Pet(this);
-        floor = new Floor(this, 0, 0);
-        floor2 = new Floor(this, 0.2f, 0.2f);
-
-        //test = new HelloWorld(this);
 
 
     }
@@ -283,10 +274,6 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
                         touchX = event.getX();
                         touchY = event.getY();
 
-                      //  float vector[] = Ray(v.getWidth(),v.getHeight(),touchX,touchY);
-
-                       // touchX=vector[0];
-                       // touchY=vector[2];
                         NativePart.onTouch(touchX, touchY);
                     }
                     break;
@@ -316,17 +303,13 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
         Log.i(TAG, "onRendererShutdown");
     }
 
-    private int screenWidth = 1280;
-    private int screenHeight = 720;
 
     @Override
     public void onSurfaceChanged(int width, int height) {
         Log.i(TAG, "onSurfaceChanged");
-        //screenHeight=height;
-        //screenWidth=width;
 
         // GLES20.glViewport(0, 0, screenWidth/width, screenHeight/height);
-        cameraOpenCvRenderer.onSurfaceChanged(null, screenWidth, screenHeight);
+        cameraOpenCvRenderer.onSurfaceChanged(null, width, height);
         // cameraRenderer.onSurfaceChanged(null, width, height);
         //test.onSurfaceChanged(width, height);
         NativePart.onSurfaceChanged(width, height);
@@ -352,49 +335,9 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
 
         cameraOpenCvRenderer.onSurfaceCreated(null, config);
-        //  cameraRenderer.onSurfaceCreated();
 
-        //  Matrix.setIdentityM(modelFloor, 0);
-        //  Matrix.translateM(modelFloor, 0, 0, floorDepth, 0); // Floor appears below user.
-
-/*
-        int vertexShader = loadGLShader(GLES20.GL_VERTEX_SHADER, R.raw.light_vertex);
-        int gridShader = loadGLShader(GLES20.GL_FRAGMENT_SHADER, R.raw.grid_fragment);
-        int passthroughShader = loadGLShader(GLES20.GL_FRAGMENT_SHADER, R.raw.passthrough_fragment);
-
-        pet.onSurfaceCreated(vertexShader, passthroughShader);
-        floor.onSurfaceCreated(vertexShader, gridShader);
-        floor2.onSurfaceCreated(vertexShader, gridShader);
-
-
-        Matrix.setIdentityM(modelFloor, 0);
-        Matrix.translateM(modelFloor, 0, 0, floorDepth, 0); // Floor appears below user.
-
-        Log.d("VVV","model floor transformed "+Arrays.toString(modelFloor));
-
-        // Avoid any delays during start-up due to decoding of sound files.
-        new Thread(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        // Start spatial audio playback of SOUND_FILE at the model postion. The returned
-                        //soundId handle is stored and allows for repositioning the sound object whenever
-                        // the cube position changes.
-                        gvrAudioEngine.preloadSoundFile(SOUND_FILE);
-                        soundId = gvrAudioEngine.createSoundObject(SOUND_FILE);
-                        gvrAudioEngine.setSoundObjectPosition(
-                                soundId, modelPosition[0], modelPosition[1], modelPosition[2]);
-                        gvrAudioEngine.playSound(soundId, true);
-                    }
-                })
-                .start();
-
-        updateModelPosition();
-
-        checkGLError("onSurfaceCreated");
-*/
         NativePart.initCL();
-        NativePart.onSurfaceCreated(screenWidth, screenHeight);
+        NativePart.onSurfaceCreated(mRequestedWidth, mRequestedHeight);
 
 
     }
@@ -455,7 +398,6 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
         headTransform.getHeadView(headView, 0);
 
-        // Update the 3d audio engine with the most recent head rotation.
         float forward[] = new float[4];
         headTransform.getForwardVector(forward, 0);
         headTransform.getQuaternion(headRotation, 0);
@@ -463,13 +405,6 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
         headTransform.getRightVector(right, 0);
         NativePart.onHeadTranform(headRotation, forward, right);
 
-
-        // gvrAudioEngine.setHeadRotation(
-        //         headRotation[0], headRotation[1], headRotation[2], headRotation[3]);
-        // Regular update call to GVR audio engine.
-        // gvrAudioEngine.update();
-
-        // checkGLError("onReadyToDraw");
 
     }
 
@@ -501,210 +436,9 @@ public class MainActivity extends GvrActivity implements GvrView.StereoRenderer 
 
 
         NativePart.onDraw(modelViewProjection, modelView,perspective);
-        /*
-
-        //  cameraRenderer.onDrawFrame(null);
-
-        //test.onDrawFrame();
-
-        checkGLError("colorParam");
-
-
-
-        // Apply the eye transformation to the camera.
-
-        Matrix.multiplyMM(view, 0, eye.getEyeView(), 0, camera, 0);
-
-        // Set the position of the light
-        Matrix.multiplyMV(lightPosInEyeSpace, 0, view, 0, LIGHT_POS_IN_WORLD_SPACE, 0);
-
-        // Build the ModelView and ModelViewProjection matrices
-        // for calculating cube position and light.
-        GLES20.glEnable(GLES20.GL_CULL_FACE);
-        float[] perspective = eye.getPerspective(Z_NEAR, Z_FAR);
-        Matrix.multiplyMM(modelView, 0, view, 0, modelCube, 0);
-        Matrix.multiplyMM(modelViewProjection, 0, perspective, 0, modelView, 0);
-        pet.drawCube();
-        GLES20.glDisable(GLES20.GL_CULL_FACE);
-
-
-        //Set modelView for the floor, so we draw floor in the correct location
-        Matrix.multiplyMM(modelView, 0, view, 0, modelFloor, 0);
-        Matrix.multiplyMM(modelViewProjection, 0, perspective, 0, modelView, 0);
-        floor.drawFloor();
-        drawInversedFloor(touchX,touchY,getResources().getDisplayMetrics().widthPixels,getResources().getDisplayMetrics().heightPixels,floorDepth);
-
-
-        //Ray(eye,screenWidth,screenHeight,touchX,touchY);
-*/
-    }
-
-
-    public void drawInversedFloor(float x, float y, float screenW, float screenH, float depth) {
-
-
-        // Auxiliary matrix and vectors
-        // to deal with ogl.
-        float[] invertedMatrix, transformMatrix,
-                normalizedInPoint, outPoint;
-        invertedMatrix = new float[16];
-        transformMatrix = new float[16];
-        normalizedInPoint = new float[4];
-        outPoint = new float[4];
-
-        // Invert y coordinate, as android uses
-        // top-left, and ogl bottom-left.
-        int oglTouchY = (int) (screenH - y);
-
-       /* Transform the screen point to clip
-       space in ogl (-1,1) */
-
-        normalizedInPoint[0] =
-                (float) ((x) * 2.0f / screenW - 1.0);
-        normalizedInPoint[1] =
-                (float) ((oglTouchY) * 2.0f / screenH - 1.0);
-        normalizedInPoint[2] = -1.0f;
-        normalizedInPoint[3] = 1.0f;
-
-        float normalizedX = (float) ((x) * 2.0f / screenW - 1.0);
-        oglTouchY = (int) y;
-        float normalizedY = (float) ((oglTouchY) * 2.0f / screenH - 1.0);
-        // Log.d("XXX","normalized point "+Arrays.toString(normalizedInPoint));
-
-/*
-        normalizedInPoint[0] =
-                (float) ((x) * 2.0f / screenW - 1.0);
-        normalizedInPoint[2] =
-                (float) ((oglTouchY) * 2.0f / screenH - 1.0);
-        normalizedInPoint[1] = floorDepth;
-        normalizedInPoint[3] = 1.0f;
-*/
-       /* Obtain the transform matrix and
-       then the inverse. */
-        // Print("Proj", getCurrentProjection(gl));
-        // Print("Model", getCurrentModelView(gl));
-
-        //Matrix.multiplyMM(
-        //        transformMatrix, 0,
-        //        modelViewProjection, 0,
-        //        view, 0);
-        Matrix.invertM(invertedMatrix, 0,
-                modelViewProjection, 0);
-
-       /* Apply the inverse to the point
-       in clip space */
-
-
-        //  normalizedInPoint[0]=1;
-        //  normalizedInPoint[1]=1f;
-
-        Matrix.multiplyMV(
-                outPoint, 0,
-                invertedMatrix, 0,
-                normalizedInPoint, 0);
-        Matrix.multiplyMV(outPoint, 0, modelView, 0, outPoint, 0);
-
-        //Log.d("XXX","out point "+Arrays.toString(outPoint));
-
-
-        //floor2.setCoords(outPoint[0]*outPoint[3],outPoint[1]*outPoint[3]);
-        //floor2.drawFloor();
-
-
-        //floor2.setCoords(normalizedInPoint[0],normalizedInPoint[1]);
-        //floor2.drawFloor();
-
-        //Log.d("XXX","draw inverted floor "+ Arrays.toString(outPoint));
-
-        //Log.d("XXX","draw inverted floor x "+normalizedInPoint[0]*floorDepth +"  "+normalizedInPoint[1]*floorDepth);
-
-        // Log.d("XXX","draw inverted floor x "+outPoint[0] / outPoint[3] +" "+ outPoint[1] / outPoint[3] +" "+ outPoint[2] / outPoint[3]);
-
-        float[] direction = {modelView[2], modelView[6], modelView[10]};
-
-        float yDir = direction[1];
-        float delta = -20.0f / yDir;
-
-        direction[0] = (normalizedX + direction[0]) * delta;
-        direction[1] = direction[1] * delta;
-        direction[2] = ((direction[2] + normalizedY) * delta);
-
-
-        float[] point = {0, 0, 0};
-        float scale = floorDepth / direction[2];
-        float out[] = {view[2] * scale, view[6] * scale, view[10] * scale};
-
-        //Log.d("XXX","draw inverted floor "+ Arrays.toString(out));
-
-        floor2.setCoords(direction[0], direction[2]);
-        floor2.drawFloor();
-        //Log.d("XXX","depth:"+floorDepth+",  draw inverted floor "+ Arrays.toString(direction));
-
-
-        float[] ray_nds = {0, 0, 1};
 
     }
 
-    public float[] Ray(int width, int height, float xTouch, float yTouch) {
-
-        int[] viewport = {0, 0, width, height};
-
-        float[] nearCoOrds = new float[3];
-        float[] farCoOrds = new float[3];
-        float[] temp = new float[4];
-        float[] temp2 = new float[4];
-
-        float winx = xTouch, winy = (float) viewport[3] - yTouch;
-
-
-
-
-
-
-        int result = GLU.gluUnProject(winx, winy, 0, modelView, 0, perspective, 0, viewport, 0, temp, 0);
-
-        temp[0]/=temp[3];
-        temp[1]/=temp[3];
-        temp[2]/=temp[3];
-        temp[3]/=temp[3];
-
-
-        Log.d(TAG, "res "+result+" vector near " + Arrays.toString(temp));
-
-
-        int result2 = GLU.gluUnProject(winx, winy, 1, modelView, 0, perspective, 0, viewport, 0, temp2, 0);
-
-
-        temp2[0]/=temp2
-                [3];
-        temp2[1]/=temp2[3];
-        temp2[2]/=temp2[3];
-        temp2[3]/=temp2[3];
-
-
-
-        Log.d(TAG, "res "+result2+"vector  far " + Arrays.toString(temp2));
-
-
-        float vector[] = {
-                temp2[0] - temp[0],
-                temp2[1] - temp[1],
-                temp2[2] - temp[2],
-        };
-
-        float delta = -20.0f/vector[1];
-        vector[0]*=delta;
-        vector[1]*=delta;
-        vector[2]*=delta;
-        //vector[3]*=delta;
-        Log.d(TAG, "vector final " + Arrays.toString(vector));
-
-
-
-        return vector;
-
-
-    }
 
     @Override
     public void onFinishFrame(Viewport viewport) {

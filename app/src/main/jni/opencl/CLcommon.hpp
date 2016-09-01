@@ -22,4 +22,4 @@ static inline int getTimeInterval(int64_t startTime)
 {
     return int(getTimeMs() - startTime);
 }
-void procOCL_I2I(int texIn, int texOut, int w, int h, int output[18][2], int fanSize, cl_int2 center,cl_float2 *linesPoints);
+cl_int2* procOCL_I2I(int texIn, int texOut, int w, int h,  int fanSize, cl_int2 center,cl_float2 *linesPoints, bool debug);

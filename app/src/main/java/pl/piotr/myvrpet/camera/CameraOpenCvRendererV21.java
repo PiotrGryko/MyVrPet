@@ -42,8 +42,8 @@ public class CameraOpenCvRendererV21 extends CameraOpecCVRendererBase {
 
     private Context context;
 
-    public CameraOpenCvRendererV21(CameraGLSurfaceView.CameraTextureListener textureListener, Context context) {
-        super(textureListener);
+    public CameraOpenCvRendererV21(CameraGLSurfaceView.CameraTextureListener textureListener, Context context, int requestedWidth, int requestedHeight) {
+        super(textureListener,requestedWidth,requestedHeight);
         this.context=context;
     }
 
@@ -223,7 +223,6 @@ public class CameraOpenCvRendererV21 extends CameraOpecCVRendererBase {
             mSTexture.setDefaultBufferSize(w, h);
 
             Surface surface = new Surface(mSTexture);
-
             mPreviewRequestBuilder = mCameraDevice
                     .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             mPreviewRequestBuilder.addTarget(surface);

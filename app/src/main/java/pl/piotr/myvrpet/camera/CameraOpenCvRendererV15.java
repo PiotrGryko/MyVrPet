@@ -20,8 +20,8 @@ public class CameraOpenCvRendererV15 extends CameraOpecCVRendererBase {
     private Camera mCamera;
     private boolean mPreviewStarted = false;
 
-    public CameraOpenCvRendererV15(CameraGLSurfaceView.CameraTextureListener textureListener) {
-        super(textureListener);
+    public CameraOpenCvRendererV15(CameraGLSurfaceView.CameraTextureListener textureListener, int requestedWidth, int requestedHeight) {
+        super(textureListener, requestedWidth,requestedHeight);
     }
 
     @Override

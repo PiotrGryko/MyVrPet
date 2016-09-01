@@ -4,15 +4,18 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
+import android.opengl.Matrix;
 import android.util.Log;
 import android.view.View;
 
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraGLSurfaceView;
+import org.opencv.core.Mat;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -29,7 +32,7 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
             + "attribute vec2 vPosition;\n"
             + "attribute vec2 vTexCoord;\n" + "varying vec2 texCoord;\n"
             + "void main() {\n" + "  texCoord = vTexCoord;\n"
-            + "  gl_Position = vec4 ( vPosition.x, vPosition.y, 0.0, 1.0 );\n"
+            + "  gl_Position =   vec4 ( vPosition.x, vPosition.y, 0.0, 1.0 );\n"
             + "}";
 
     private final String fssOES = ""
@@ -50,9 +53,9 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
     // coord-s
     private final float vertices[] = {
             -1, -1,
-            -1,  1,
-            1, -1,
-            1,  1 };
+            -1,  1f,
+            1f, -1,
+            1f,  1f };
     private final float texCoordOES[] = {
             0,  1,
             0,  0,
@@ -64,6 +67,10 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
             1,  0,
             1,  1 };
 
+
+
+
+
     private int[] texCamera = {0}, texFBO = {0}, texDraw = {0};
     private int[] FBO = {0};
     private int progOES = -1, prog2D = -1;
@@ -72,7 +79,7 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
     private FloatBuffer vert, texOES, tex2D;
 
     protected int mCameraWidth = -1, mCameraHeight = -1;
-    protected int mFBOWidth = -1, mFBOHeight = -1;
+    protected int mFBOWidth = -1, mFBOHeight = -1, mRequestedWidth =-1, mRequestedHeight=-1,mViewWidth =-1, mViewHeight=-1;;
     protected int mMaxCameraWidth = -1, mMaxCameraHeight = -1;
     protected int mCameraIndex = CameraBridgeViewBase.CAMERA_ID_ANY;
 
@@ -92,8 +99,10 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
     protected abstract void closeCamera();
     protected abstract void setCameraPreviewSize(int width, int height); // updates mCameraWidth & mCameraHeight
 
-    public CameraOpecCVRendererBase(CameraGLSurfaceView.CameraTextureListener cameraTextureListener) {
+    public CameraOpecCVRendererBase(CameraGLSurfaceView.CameraTextureListener cameraTextureListener, int mRequestedWidth, int mRequestedHeight) {
         //mView = view;
+        this.mRequestedWidth=mRequestedWidth;
+        this.mRequestedHeight=mRequestedHeight;
         int bytes = vertices.length * Float.SIZE / Byte.SIZE;
         vert   = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder()).asFloatBuffer();
         texOES = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder()).asFloatBuffer();
@@ -150,19 +159,23 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
         }
     }
 
+
     @Override
     public void onSurfaceChanged(GL10 gl, int surfaceWidth, int surfaceHeight) {
         Log.i(LOGTAG, "onSurfaceChanged("+surfaceWidth+"x"+surfaceHeight+")");
         setMaxCameraPreviewSize(surfaceWidth,surfaceHeight);
         mHaveSurface = true;
         updateState();
-        setPreviewSize(surfaceWidth, surfaceHeight);
+        setPreviewSize(mRequestedWidth, mRequestedHeight);
+        this.mViewWidth=surfaceWidth;
+        this.mViewHeight=surfaceHeight;
     }
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         Log.i(LOGTAG, "onSurfaceCreated");
         initShaders();
+
     }
 
     private void initShaders() {
@@ -180,6 +193,7 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
 
         prog2D  = loadShader(vss, fss2D);
         vPos2D = GLES20.glGetAttribLocation(prog2D, "vPosition");
+
         vTC2D  = GLES20.glGetAttribLocation(prog2D, "vTexCoord");
         GLES20.glEnableVertexAttribArray(vPos2D);
         GLES20.glEnableVertexAttribArray(vTC2D);
@@ -206,6 +220,8 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
         if(tex.length == 1) {
             GLES20.glGenTextures(1, tex, 0);
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, tex[0]);
+      //      GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 1280, 720, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
+
             GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
             GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
             GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
@@ -306,12 +322,17 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
     // draw texture to FBO or to screen if fbo == 0
     private void drawTex(int tex, boolean isOES, int fbo)
     {
+
+
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo);
 
-      //  if(fbo == 0)
-       //     GLES20.glViewport(0, 0, mView.getWidth(), mView.getHeight());
-        //else
-          //  GLES20.glViewport(0, 0, mFBOWidth, mFBOHeight);
+        if(fbo == 0)
+            GLES20.glViewport(0, 0, mViewWidth, mViewHeight);
+        else
+            GLES20.glViewport(0, 0, mFBOWidth, mFBOHeight);
+
+
+
 
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
@@ -319,10 +340,12 @@ public abstract class CameraOpecCVRendererBase implements GLSurfaceView.Renderer
             GLES20.glUseProgram(progOES);
             GLES20.glVertexAttribPointer(vPosOES, 2, GLES20.GL_FLOAT, false, 4*2, vert);
             GLES20.glVertexAttribPointer(vTCOES,  2, GLES20.GL_FLOAT, false, 4*2, texOES);
+
         } else {
             GLES20.glUseProgram(prog2D);
             GLES20.glVertexAttribPointer(vPos2D, 2, GLES20.GL_FLOAT, false, 4*2, vert);
             GLES20.glVertexAttribPointer(vTC2D,  2, GLES20.GL_FLOAT, false, 4*2, tex2D);
+
         }
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);

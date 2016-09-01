@@ -8,6 +8,7 @@
 #include <math.h>
 #include "glm.hpp"
 #include "engine/glu_imp.h"
+#include "engine/object/GameObject.h"
 
 float mModelView[16];
 float mPerspective[16];
@@ -20,18 +21,21 @@ float mHeadRotationQuaternion[4];
 float mHeadRightVector[4];
 
 
-int mProcessingResult[18][2];
 
 float static depth=-20;
+int fanSize =10;
 
 float screenHeight;
 float screenWidth;
+float previewWidth;
+float previewHeight;
 
 
 
-int fanSize =10;
 cl_float2 linesPoints[10];
 cl_int2 objectPosition;
+
+GameObject box;
 
 static void project3Dto2D(float output[3],float x, float y, float z, float maxWidth, float maxHeight)
 {
@@ -46,7 +50,6 @@ static void project3Dto2D(float output[3],float x, float y, float z, float maxWi
     output[0]=resultx;
     output[1]=resulty;
     output[2]=resultz;
-    LOGD("project result %f %f %f ", resultx,resulty,resultz);
 
 }
 
@@ -80,18 +83,17 @@ static void project2Dto3D(float output[3], float x, float y, float maxWidth, flo
     output[0]*=delta;
     output[1]*=delta;
     output[2]*=delta;
-    LOGD("near %f %f %f far %f %f %f ",xNear,yNear,zNear,xFar,yFar,zFar);
 
 }
 
 extern "C" void processFrame(int tex1, int tex2, int w, int h, int mode) {
 
 
-    procOCL_I2I(tex1, tex2, w, h, mProcessingResult,fanSize,objectPosition,linesPoints);
+    cl_int2 *result =procOCL_I2I(tex1, tex2, w, h,fanSize,objectPosition,linesPoints,true);
 
 
     for (int i = 0; i < 10; i++) {
-             LOGD("result %d x=%d y=%d", i, mProcessingResult[0][0], mProcessingResult[0][1]);
+             LOGD("result %d x=%d y=%d", i, result[i].s[0], result[i].s[1]);
     }
 
 }
@@ -107,10 +109,9 @@ static void generateFan(float centerX, float centerY, float centerZ, cl_float2 *
 
 
     float screenCenter[3];
-    project3Dto2D(screenCenter,centerX,centerZ,centerY,1280,720);
+    project3Dto2D(screenCenter,centerX,centerZ,centerY,previewWidth,previewHeight);
     objectPosition = {(int)screenCenter[0],(int)screenCenter[1]};
 
-    LOGD("object %f %f %f, projected %f %f %f",centerX,centerZ,centerY,screenCenter[0],screenCenter[1],screenCenter[2]);
     float PI = 3.14;
 
     float length =5;
@@ -130,7 +131,6 @@ static void generateFan(float centerX, float centerY, float centerZ, cl_float2 *
         float pointX = centerX +cost*length;
         float pointY = centerY + sint*length;
 
-        LOGD("3d center %f %f point %f %f ",centerX,centerY,pointX,pointY);
 
         Engine_glVertex3f(centerX, centerZ, centerY); // tl
         Engine_glVertex3f(pointX, centerZ, pointY); // bl
@@ -139,7 +139,7 @@ static void generateFan(float centerX, float centerY, float centerZ, cl_float2 *
 
         //project points to the screen
         float screenPoint[3];
-        project3Dto2D(screenPoint,pointX,centerZ,pointY,1280,720);
+        project3Dto2D(screenPoint,pointX,centerZ,pointY,previewWidth,previewHeight);
 
         linesEdges[i]={screenPoint[0],screenPoint[1]};
 
@@ -151,73 +151,6 @@ static void generateFan(float centerX, float centerY, float centerZ, cl_float2 *
 
 
 
-static void drawCube(float centerX, float centerY, float centerZ, float boxSize) {
-
-
-
-
-    generateFan(centerX,centerY,centerZ,linesPoints,fanSize);
-
-
-    glEnable(GL_CULL_FACE);
-    Engine_glBegin(GL_TRIANGLE_STRIP);
-    Engine_glColor3f(1, 0, 0);
-    //bottom
-    Engine_glVertex3f(centerX - boxSize, centerZ, centerY - boxSize); // tl
-    Engine_glVertex3f(centerX - boxSize, centerZ, centerY + boxSize); // bl
-    Engine_glVertex3f(centerX + boxSize, centerZ, centerY - boxSize); // tr
-    Engine_glVertex3f(centerX + boxSize, centerZ, centerY + boxSize); // br
-    //top
-    //Engine_glColor3f(0, 1, 0);
-
-    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
-                      centerY - boxSize); // tl
-    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
-                      centerY + boxSize); // bl
-    Engine_glVertex3f(centerX + boxSize, centerZ + boxSize * 2,
-                      centerY - boxSize); // tr
-    Engine_glVertex3f(centerX + boxSize, centerZ + boxSize * 2,
-                      centerY + boxSize); // br
-    //front
-    //Engine_glColor3f(0, 0, 1);
-    Engine_glVertex3f(centerX - boxSize, centerZ, centerY + boxSize); // bl
-    Engine_glVertex3f(centerX + boxSize, centerZ, centerY + boxSize); // br
-    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
-                      centerY + boxSize); // tl
-    Engine_glVertex3f(centerX + boxSize, centerZ + boxSize * 2,
-                      centerY + boxSize); // tr
-    //back
-    Engine_glVertex3f(centerX - boxSize, centerZ, centerY - boxSize); // tl
-    Engine_glVertex3f(centerX + boxSize, centerZ, centerY - boxSize); // tr
-    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
-                      centerY - boxSize); // tl
-    Engine_glVertex3f(centerX + boxSize,centerZ + boxSize * 2,
-                      centerY - boxSize); // tr
-    //left
-    Engine_glVertex3f(centerX - boxSize, centerZ, centerY - boxSize); // tl
-    Engine_glVertex3f(centerX - boxSize, centerZ, centerY + boxSize); // bl
-    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
-                      centerY - boxSize); // tl
-    Engine_glVertex3f(centerX - boxSize, centerZ + boxSize * 2,
-                      centerY + boxSize); // bl
-    //right
-    Engine_glVertex3f(centerX + boxSize, centerZ , centerY - boxSize); // tr
-    Engine_glVertex3f(centerX + boxSize, centerZ , centerY + boxSize); // br
-    Engine_glVertex3f(centerX + boxSize, centerZ  + boxSize * 2,
-                      centerY - boxSize); // tr
-    Engine_glVertex3f(centerX + boxSize, centerZ  + boxSize * 2,
-                      centerY + boxSize); // br
-
-    Engine_glEnd();
-    glDisable(GL_CULL_FACE);
-
-
-
-
-
-
-
-}
 
 extern "C" void onDraw(float *modelViewProjection, float *eyeView, float *perspective) {
 
@@ -262,7 +195,11 @@ extern "C" void onDraw(float *modelViewProjection, float *eyeView, float *perspe
 */
     //LOGD("draw cube x=%f y=%f", projectedTouchX, projectedTouchY);
 
-    drawCube(projectedTouchX, projectedTouchY,depth, boxSize);
+
+    generateFan(box.mCenterX, box.mCenterY, box.mCenterZ, linesPoints, fanSize);
+
+    box.draw();
+
 
 
 
@@ -270,8 +207,11 @@ extern "C" void onDraw(float *modelViewProjection, float *eyeView, float *perspe
 extern "C" void onSurfaceCreated(int w, int h) {
     Engine_setup_opengl(w, h);
     LOGE("surface created");
-    screenWidth = w;
-    screenHeight = h;
+    previewWidth = w;
+    previewHeight = h;
+
+    box.init(projectedTouchX, projectedTouchY,depth, boxSize);
+
 
 };
 extern "C" void onSurfaceChanged(int w, int h) {
@@ -279,6 +219,7 @@ extern "C" void onSurfaceChanged(int w, int h) {
     LOGE("surface changed");
     screenWidth = w;
     screenHeight = h;
+
 
 };
 
@@ -288,7 +229,6 @@ extern "C" void onHeadTransform(float *quat, float *forwardVector, float *rightV
         mHeadForwardVector[i] = forwardVector[i];
         mHeadRightVector[i] = rightVector[i];
     }
-    //LOGD("head rotation %f %f ",quaternion[0],quaternion[3]);
 }
 
 
@@ -304,6 +244,8 @@ extern "C" void onTouch(float x, float y) {
     project2Dto3D(output,x,screenHeight-y,screenWidth,screenHeight);
     projectedTouchX=output[0];
     projectedTouchY=output[2];
+
+    box.setPosition(projectedTouchX,projectedTouchY);
    // projectedTouchZ=output[2];
 
 }
