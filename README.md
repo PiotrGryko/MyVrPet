@@ -1,0 +1,3 @@
+# MyVrPet
+
+OpenGL,OpenCL,ndk
